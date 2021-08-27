@@ -16,12 +16,13 @@ However, recaptcha-manager is not suitable for all applications. Some things to 
 - Only recaptcha-v2 and recaptcha-v3 are supported
 - Only practical for use cases which repeatedly require captcha tokens for the same site
 
-## Installation
+## Installation/Usage
 
 You can install the package from pypi like below:
 ```python
 pip install recaptcha_manager
 ```
+For complete examples of how to use this, check out the [documentation](https://recaptcha-manager.readthedocs.io/en/latest/)
 
 ## Development
 
