@@ -1,7 +1,6 @@
 import unittest
 import time
 import queue
-
 import requests.exceptions
 from recaptcha_manager import AntiCaptcha, TwoCaptcha, generate_queue, generate_flag, AutoManager
 import multiprocessing
@@ -10,16 +9,20 @@ import multiprocessing
 class MyAntiCaptcha(AntiCaptcha):
     pass
 
+
 class MyTwoCaptcha(TwoCaptcha):
     pass
 
+
 class AntiCaptchaBadURL(AntiCaptcha):
     api_url = 'urlWithMissingSchema'
+
 
 class MyClass:
     @staticmethod
     def exc_handler():
         pass
+
 
 def wrapper(flag, request_queue, key, status_flag):
     # proc = multiprocessing.Process(target=MyAntiCaptcha.requests_manager, args=(flag, request_queue, '', ))
@@ -27,6 +30,7 @@ def wrapper(flag, request_queue, key, status_flag):
         AntiCaptchaBadURL.requests_manager(flag, request_queue, key)
     except requests.exceptions.MissingSchema:
         status_flag.value = True
+
 
 class TestService(unittest.TestCase):
     def test_spawn_process(self):
@@ -67,7 +71,6 @@ class TestService(unittest.TestCase):
         MyAntiCaptcha.ci_list = l2
 
         self.assertEqual((l1, l2, MyAntiCaptcha.name), MyAntiCaptcha.get_state())
-
 
     def test_requests_manager_with_state_from_same_service(self):
         request_queue = generate_queue()
@@ -126,7 +129,6 @@ class TestService(unittest.TestCase):
 
         self.assertEqual(len(class_ci_list), len(ci_list))
         self.assertEqual(len(unsolved), count)
-
 
 
 if __name__ == '__main__':

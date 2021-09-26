@@ -25,6 +25,7 @@ class BaseService(ABC):
     key = None
     name = None
     api_url = None
+    cost = None
 
     @classmethod
     def spawn_process(cls, flag, request_queue, key, retry=None, exc_handler=None, state=None,
@@ -189,10 +190,10 @@ class BaseService(ABC):
                     if exc_handler:
                         status = exc_handler(e)
                         if not status:
-                            raise
+                            raise e from None
                         continue
                     else:
-                        raise
+                        raise e from None
 
                 try:
                     # remove_request is an attribute added to response after a task has been successfully registered
@@ -241,10 +242,10 @@ class BaseService(ABC):
                 if exc_handler:
                     status = exc_handler(e)
                     if not status:
-                        raise
+                        raise e from None
                     continue
                 else:
-                    raise
+                    raise e from None
 
             try:
                 # remove_request is an attribute added to response after a task has been successfully solved with the
@@ -286,11 +287,12 @@ class BaseService(ABC):
 class AntiCaptcha(BaseService):
     """Uses Anticaptcha captcha service to solve recaptchas
 
-       URL: https://anti-captcha.com
-       Documentation: https://anti-captcha.com/apidoc"""
+       | URL: https://anti-captcha.com
+       | Documentation: https://anti-captcha.com/apidoc"""
 
     name = 'anticaptcha'
     api_url = 'http://api.anti-captcha.com/'
+    cost = 0.002
 
     @classmethod
     def _api_parse_request(cls, request):
@@ -408,8 +410,8 @@ class AntiCaptcha(BaseService):
                 # We successfully got the g-recaptcha response. We add this to the response_queue along with the time
                 # it was solved, the time it was added to response_queue, id of the task and the cost for the captcha
                 instance.response_queue.put({'id': request['task_id'], 'answer': r_data['solution']['gRecaptchaResponse'],
-                                             'timeSolved': int(r_data['endTime']), 'cost': float(r_data['cost']),
-                                             'timeReceived': time.time()})
+                                             'timeSolved': int(r_data.get('endTime', time.time() - 5)),
+                                             'cost': float(r_data.get('cost', cls.cost)), 'timeReceived': time.time()})
 
                 # We call requestsSolved to edit relevant counters.
                 instance.request_solved(request['timeToQ'])
@@ -480,12 +482,13 @@ class TwoCaptcha(BaseService):
     """
     Uses 2Captcha captcha service to solve recaptchas
 
-    URL: https://2captcha.com
-    Documentation: https://2captcha.com/2captcha-api
+    | URL: https://2captcha.com
+    | Documentation: https://2captcha.com/2captcha-api
     """
 
     name = '2captcha'
     api_url = 'http://2captcha.com/'
+    cost = 0.003
 
     @classmethod
     def _api_parse_request(cls, request):
@@ -587,7 +590,7 @@ class TwoCaptcha(BaseService):
                 # it was solved, the time it was added to response_queue, id of the task and the cost for the captcha
                 instance.response_queue.put(
                     {'id': request['task_id'], 'answer': r_data['request'],
-                     'timeSolved': time.time() - 3, 'cost': 0.003,
+                     'timeSolved': time.time() - 3, 'cost': cls.cost,
                      'timeRecieved': time.time()})
 
                 # We call requestsSolved to edit relevant counters.
@@ -596,7 +599,7 @@ class TwoCaptcha(BaseService):
                 # Mark the request as completed and safe to remove from cls.unsolved list
                 r.remove_request = True
 
-            elif error_code == 'ERROR_CAPTCHA_UNSOLVBABLE':
+            elif error_code == 'ERROR_CAPTCHA_UNSOLVABLE':
 
                 # For some reason, our captcha wasn't solved. So we mark the request as completed but add it back to
                 # the request_queue so it can be registered again after we edit the relevant counters
@@ -671,3 +674,14 @@ class TwoCaptcha(BaseService):
         r = cls.session.post(data, verify=False, timeout=7, hooks={'response': cls._api_parse_answer(request)})
         return r
 
+
+class CapMonster(AntiCaptcha):
+    """
+    Uses Capmonster service to solve captcha. The service offers many similar APIs to other popular services
+
+    URL: https://capmonster.cloud
+    """
+
+    name = 'capmonster'
+    api_url = 'https://api.capmonster.cloud/'
+    cost = 0.0006

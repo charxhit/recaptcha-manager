@@ -10,13 +10,13 @@ recaptcha-manager — Introduction
    :maxdepth: 2
    :caption: Contents:
 
-.. note:: This package is in active development and is an unstable release. Bug reports, feature-requests and PRs are highly appreciated!
 
 Average solving time for recaptchas by services like 2Captcha, Anticaptcha, etc. is around
 30-60s at best. By using this package, you can bring that down to less than 1s. It achieves this by mathematically analysing relevant factors to predict and send more than one request whenever you request a captcha. The number of requests made is such that it keeps the waiting time minimal all the while making sure that there won't be any expired captchas.
 
 However, this package is not suitable for all programs. Keep in mind that this package works by pre-sending multiple captcha requests. Therefore, it only supports ``recaptcha-v2`` and ``recaptcha-v3`` and will only be practical for tasks that require recaptcha tokens repeatedly for the same site.
 
+.. note:: This package is in active development. Bug reports and feature-requests appreciated!
 
 .. note:: This package uses multiprocessing to spawn a service process which handles captcha requests in the background. Therefore, your main code must be under a ``if __name__ == "__main__"`` clause (check `multiprocessing programming guidelines <https://docs.python.org/3/library/multiprocessing.html#programming-guidelines>`_ to know more).
 
@@ -86,9 +86,12 @@ To store data, and to calculate and predict the number of captcha requests to se
       worker(inst, 10)
 
       flag.value = False
-      manager_proc.join()
+      service_proc.join()
 
 .. note:: Currently, only Anticaptcha and 2Captcha services are supported
+
+.. versionadded:: 0.0.2
+   Added support for Capmonster service
 
 .. py:currentmodule:: recaptcha_manager
 
@@ -156,7 +159,7 @@ You can specify a callable which will be called everytime an exception occurs (s
                     ##
                     return True  # Because we return True, this error will not be raised!
 
-                # Print out information about the error if its not SomeNonFatalError before its raised in
+                # Print out information about the error if its not SomeNonFatalError before its raised in outer scope
                 print(sys.exc_info())
 
 
@@ -168,7 +171,7 @@ Additionally, you can pass a :class:`~urllib3.util.Retry` object which will be m
 
 You can then pass this to the server process::
 
-   server_proc = MyAntiCaptcha.spawn_process(flag, request_queue, APIKey, retry=retries, exc_handler=exc_handler)
+   service_proc = MyAntiCaptcha.spawn_process(flag, request_queue, APIKey, retry=retries, exc_handler=exc_handler)
 
 Lastly, there may be times when you want to switch the service being used, or restart it, particularly if a :exc:`~recaptcha_manager.exceptions.LowBidError` or a :exc:`~recaptcha_manager.exceptions.NoBalanceError` was raised. To handle these cases, there needs to be a way to exit the current service process, and start a new one, with minimum loss of data in between. Therefore, to achieve this you should create your own wrapper to call :meth:`~BaseService.requests_manager` with appropriate error handling, and use :meth:`~BaseService.get_state` to pass the state of one service process onto another using the `state` parameter of :meth:`~BaseService.requests_manager`. Example code to demonstrate this::
 
@@ -238,16 +241,39 @@ References
 
 This section contains all relevant code and its documentation separated by their classes
 
-BaseService class
+Service classes
 ---------------------
+.. versionadded:: 0.0.2
+   Added service class :class:`~recaptcha_manager.CapMonster`
+
+All supported services and their base class.
+
+BaseService
++++++++++++++++++++++
 .. module:: recaptcha_manager
 
 .. autoclass:: BaseService
    :members:
 
+AntiCaptcha
+++++++++++++++++++++++
+.. autoclass:: AntiCaptcha
+   :show-inheritance:
+
+TwoCaptcha
++++++++++++++++++++++++
+.. autoclass:: TwoCaptcha
+   :show-inheritance:
+
+CapMonster
++++++++++++++++++++++++
+.. autoclass:: CapMonster
+   :show-inheritance:
 
 AutoManager class
 ---------------------
+.. versionadded:: 0.0.2
+   Method :meth:`~AutoManager.get_waiting_time`
 
 .. autoclass:: AutoManager
    :members:
