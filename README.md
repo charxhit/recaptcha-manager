@@ -22,6 +22,7 @@ You can install the package from pypi like below:
 ```python
 pip install recaptcha_manager
 ```
+For complete examples of how to use this, check out the [documentation](https://recaptcha-manager.readthedocs.io/en/latest/)
 
 Keep in mind that this package uses [multiprocessing](https://docs.python.org/3/library/multiprocessing.html), and hence your main code should be protected by a `if __name__ == "__main__"` clause. A very simple example of how to do this is given below:
 ```python
