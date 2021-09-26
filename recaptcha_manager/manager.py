@@ -89,7 +89,7 @@ class BaseRequest(ABC):
 
         :return: Request ready to be put into request_queue
         :rtype: dict
-
+        :meta private:
         """
         return {'instance': self.proxy, 'timeToQ': time.time()}
 
@@ -154,6 +154,18 @@ class BaseRequest(ABC):
                     self.response_queue.get(block=False)
                 except queue.Empty:
                     break
+
+    def get_waiting_time(self):
+        """
+        Returns recent average waiting time to receive a captcha token from server process. Will be zero if not enough
+        statistics collected.
+
+        :rtype: float
+        """
+
+        with self.instance_lock:
+            self.update_stats()
+        return self.WaitingTime['rate']
 
     def get_request(self, send_custom_reqs=True, max_block=0):
         """
