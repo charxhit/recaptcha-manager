@@ -1,14 +1,15 @@
-import multiprocessing
+import multiprocess as multiprocessing
 from ctypes import c_bool
 
-def generate_queue():
+def generate_queue(manager=None):
     """
     Generates a proxy object of class :class:`~multiprocessing.Queue`
 
     :rtype: multiprocessing.Queue
     """
-    m = multiprocessing.Manager()
-    return m.Queue()
+    if manager is None:
+        manager = multiprocessing.Manager()
+    return manager.Queue()
 
 
 def generate_flag():
@@ -17,5 +18,4 @@ def generate_flag():
 
     :rtype: multiprocessing.sharedctypes.Synchronized
     """
-
     return multiprocessing.Value(c_bool, True)

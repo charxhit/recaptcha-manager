@@ -1,3 +1,4 @@
-from .generators import generate_flag, generate_queue
-from .manager import AutoManager
+from .generators import generate_queue
+from .manager import AutoManager, ManualManager
 from .services import AntiCaptcha, TwoCaptcha, CapMonster, BaseService
+from .exceptions import Exhausted
