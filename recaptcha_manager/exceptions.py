@@ -28,7 +28,7 @@ class BadAPIKeyError(Errors):
     pass
 
 
-class BadSitekeyError(Errors):
+class BadSiteKeyError(Errors):
     """
     Raised when server reports provided sitekey is incorrect. May also signify that provided sitekey-domain combination
     is incorrect
@@ -42,3 +42,46 @@ class BadDomainError(Errors):
     is incorrect
     """
     pass
+
+
+class InvalidBatchID(Errors):
+    """
+    Raised when the batch_id supplied to ManalManager is incorrect
+    """
+    pass
+
+
+class RestoreError(Errors):
+    """
+    Raised due to an error when attempting to create or use restore points
+    """
+    pass
+
+
+class TimeOutError(TimeoutError):
+    """
+    Raised when time spent waiting for a captcha inside managers exceeds the maximum allowed.
+    """
+    pass
+
+
+class Exhausted(Errors):
+    """
+    Raised when managers are no longer usable
+    """
+    pass
+
+
+class EmptyError(Errors):
+    """
+    Raised when no captchas are being currently solved for a specified batch_id when using ManualManagers
+    """
+    pass
+
+
+class UnexpectedResponse(RuntimeError, Errors):
+    """
+    Raised when the solving service replied with an unparsable message
+    """
+    pass
+
