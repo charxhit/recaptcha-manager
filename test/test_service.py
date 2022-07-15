@@ -1,18 +1,9 @@
 import unittest
 import time
-import queue
 import requests.exceptions
-from recaptcha_manager import AntiCaptcha, TwoCaptcha, generate_queue, generate_flag, AutoManager
-import multiprocessing
-
-
-class MyAntiCaptcha(AntiCaptcha):
-    pass
-
-
-class MyTwoCaptcha(TwoCaptcha):
-    pass
-
+from recaptcha_manager import AntiCaptcha, generate_queue, AutoManager
+from recaptcha_manager.exceptions import BadDomainError, BadSiteKeyError, BadAPIKeyError, NoBalanceError, LowBidError
+from recaptcha_manager.services import DummyService
 
 class AntiCaptchaBadURL(AntiCaptcha):
     api_url = 'urlWithMissingSchema'
@@ -25,7 +16,7 @@ class MyClass:
 
 
 def wrapper(flag, request_queue, key, status_flag):
-    # proc = multiprocessing.Process(target=MyAntiCaptcha.requests_manager, args=(flag, request_queue, '', ))
+    # proc = multiprocessing.Process(target=MyAntiCaptcha.requests_manager, args=(stopped, request_queue, '', ))
     try:
         AntiCaptchaBadURL.requests_manager(flag, request_queue, key)
     except requests.exceptions.MissingSchema:
@@ -35,100 +26,94 @@ def wrapper(flag, request_queue, key, status_flag):
 class TestService(unittest.TestCase):
     def test_spawn_process(self):
         request_queue = generate_queue()
-        flag = generate_flag()
-        flag.value = False
-        proc = MyAntiCaptcha.spawn_process(flag, request_queue, '', exc_handler=MyClass.exc_handler)
+        service = DummyService.create_service('', request_queue)
+        service_proc = service.spawn_process(exc_handler=MyClass.exc_handler)
+        time.sleep(5)
+        self.assertTrue(service.is_alive())
+        with self.assertRaises(RuntimeError):
+            service.spawn_process(exc_handler=MyClass.exc_handler)
+
+        service.stop()
+        service_proc.join()
+
+        with self.assertRaises(RuntimeError):
+            service.spawn_process(exc_handler=MyClass.exc_handler)
+
+        service_proc.join()
 
     def test_stop(self):
         request_queue = generate_queue()
-        flag = generate_flag()
-
-        proc = MyAntiCaptcha.spawn_process(flag, request_queue, '')
-
-        flag.value = False
+        service = DummyService.create_service('', request_queue)
+        proc = service.spawn_process()
+        service.stop()
         proc.join(timeout=10)
         self.assertIsNotNone(proc.exitcode)
 
-    def test_own_wrapper(self):
-        flag = generate_flag()
-        status_flag = generate_flag()
+    def test_bad_domain_error(self):
         request_queue = generate_queue()
-        status_flag.value = False
+        service = DummyService.create_service('', request_queue, error='BadDomainError')
+        proc = service.spawn_process()
+        manager = AutoManager.create(request_queue, 'http://test.com', '', 'v2')
+        manager.send_request(initial=1)
 
-        inst = AutoManager.create(request_queue, '', '', 'v2')
-        request_queue.put(inst.create_request())
+        with self.assertRaises(BadDomainError):
+            manager.get_request(max_block=15)
 
-        proc = multiprocessing.Process(target=wrapper, args=(flag, request_queue, '', status_flag, ))
-        proc.start()
+        service.stop()
         proc.join()
-        self.assertTrue(status_flag.value)
 
-    def test_get_state(self):
-        l1 = ['', '', '']
-        l2 = ['', '', '']
-
-        MyAntiCaptcha.unsolved = l1
-        MyAntiCaptcha.ci_list = l2
-
-        self.assertEqual((l1, l2, MyAntiCaptcha.name), MyAntiCaptcha.get_state())
-
-    def test_requests_manager_with_state_from_same_service(self):
+    def test_bad_sitekey_error(self):
         request_queue = generate_queue()
-        flag = generate_flag()
-        unsolved = []
-        ci_list = []
-        inst = AutoManager.create(request_queue, '', '', 'v2')
+        service = DummyService.create_service('', request_queue, error='BadSiteKeyError')
+        proc = service.spawn_process()
+        manager = AutoManager.create(request_queue, 'http://test.com', '', 'v2')
+        manager.send_request(initial=1)
 
-        for _ in range(5):
-            ci_list.append(inst.create_request())
+        with self.assertRaises(BadSiteKeyError):
+            manager.get_request(max_block=15)
 
-        for _ in range(5):
-            d = inst.create_request()
-            d['task_id'] = '123'
-            d['statTime'] = time.time()
-            unsolved.append(d)
+        service.stop()
+        proc.join()
 
-        flag.value = False
-        MyAntiCaptcha.requests_manager(flag, request_queue, '', state=(unsolved, ci_list, MyAntiCaptcha.name))
-
-        class_unsolved, class_ci_list, class_name = MyAntiCaptcha.get_state()
-
-        self.assertEqual(len(unsolved), len(class_unsolved))
-        self.assertEqual(len(ci_list), len(class_ci_list))
-
-    def test_requests_manager_with_state_from_different_service(self):
+    def test_bad_api_key_error(self):
         request_queue = generate_queue()
-        flag = generate_flag()
-        unsolved = []
-        ci_list = []
-        inst = AutoManager.create(request_queue, '', '', 'v2')
+        service = DummyService.create_service('', request_queue, error='BadAPIKeyError')
+        proc = service.spawn_process()
+        manager = AutoManager.create(request_queue, 'http://test.com', '', 'v2')
+        manager.send_request(initial=1)
+        time.sleep(5)
+        with self.assertRaises(BadAPIKeyError):
+            service.get_exception()
 
-        for _ in range(5):
-            ci_list.append(inst.create_request())
+        service.stop()
+        proc.join()
 
-        for _ in range(5):
-            d = inst.create_request()
-            d['task_id'] = '123'
-            d['statTime'] = time.time()
-            unsolved.append(d)
+    def test_no_balance_error(self):
+        request_queue = generate_queue()
+        service = DummyService.create_service('', request_queue, error='NoBalanceError')
+        proc = service.spawn_process()
+        manager = AutoManager.create(request_queue, 'http://test.com', '', 'v2')
+        manager.send_request(initial=1)
+        time.sleep(5)
+        with self.assertRaises(NoBalanceError):
+            service.get_exception()
+        service.stop()
+        proc.join()
 
-        flag.value = False
-        MyAntiCaptcha.requests_manager(flag, request_queue, '', state=(unsolved, ci_list, MyTwoCaptcha.name))
+    def test_low_bid_error(self):
+        request_queue = generate_queue()
+        service = DummyService.create_service('', request_queue, error='LowBidError')
+        proc = service.spawn_process()
+        manager = AutoManager.create(request_queue, 'http://test.com', '', 'v2')
+        manager.send_request(initial=1)
+        time.sleep(5)
+        with self.assertRaises(LowBidError):
+            service.get_exception()
+        service.stop()
+        proc.join()
 
-        class_unsolved, class_ci_list, class_name = MyAntiCaptcha.get_state()
 
-        self.assertEqual(len(class_unsolved), 0)
 
-        count = 0
-        while True:
-            try:
-                request_queue.get(block=None)
-                count +=1
-            except queue.Empty:
-                break
-
-        self.assertEqual(len(class_ci_list), len(ci_list))
-        self.assertEqual(len(unsolved), count)
 
 
 if __name__ == '__main__':
