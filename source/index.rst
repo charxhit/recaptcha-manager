@@ -28,9 +28,35 @@ Some other core features of recaptcha-manager are summarized below:
 * **Efficiency** - Apart from sending HTTP requests to communicate with the solving service's API in a separate background process, the requests are also sent asynchronously so that the service response times do not slow down scripts requiring a high volume of recaptchas
 
 
+.. note:: This package uses multiprocessing to spawn a service process which handles captcha requests in the background. Therefore, your main code must be under a ``if __name__ == "__main__"`` clause (more information `here <https://docs.python.org/3/library/multiprocessing.html#programming-guidelines>`_). A very simple example of how to do this is given below:
 
-.. note:: This package uses multiprocessing to spawn a service process which handles captcha requests in the background.
-          Therefore, your main code must be under a ``if __name__ == "__main__"`` clause (check `multiprocessing programming guidelines <https://docs.python.org/3/library/multiprocessing.html#programming-guidelines>`_ to know more).
+   .. code-block:: python
+
+      # Original code
+
+      def main():
+          func()
+
+      def func():
+          pass
+
+      # Not protected
+      main()
+
+   .. code-block:: python
+
+      # Edited code
+
+      def main():
+          func()
+
+      def func():
+          pass
+
+      # Protected!
+      if __name__ == "__main__":
+          main()
+
 
 Glossary
 ====================
@@ -554,7 +580,7 @@ From inside the project root, run::
 
 Version 0.0.3 & Backwards compatibility
 =============================================
-Version 0.0.3 included several changes to existing structures that are not backwards compatible with previous versions. These changes were done to make the code more predictable, flexible and increase stability for future versions. For convenience, an exhaustive list is provided below:
+Version 0.0.3 included several changes to existing structures that are not backwards compatible with previous versions. These changes were done to make the code more predictable, flexible and increase stability for future versions. For convenience, an exhaustive list is provided below. Alternatively, you can also choose to reinstall the previous version of recaptcha-manager, and continue using it with it's relevant `documentation <https://recaptcha-manager.readthedocs.io/en/stable/>`_ while updating your code so it becomes compatible with the later versions.
 
 Changes in AutoManagers
 ++++++++++++++++++++++++++++++
@@ -566,7 +592,7 @@ Changes in AutoManagers
 Changes in Service Processes
 +++++++++++++++++++++++++++++
 
-* Flags are no longer needed to create service processes.
+* Flags are no longer needed to create service processes. Refer to :ref:`this <Stopping the AutoManager>` section for details on stopping the AutoManager.
 * | Unlike previously, instances of the services needs to be created before you can start a service process. Consider this code below which would work in previous versions to start a service process:
 
    .. code-block:: python

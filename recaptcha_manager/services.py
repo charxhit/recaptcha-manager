@@ -184,7 +184,7 @@ class BaseService(ABC):
         # We set the attribute to mark the request as completed and can be safely removed
         response_obj.remove_request = True
 
-    def spawn_process(self, retry=None, exc_handler=None, disable_insecure_warning=True) -> multiprocessing.Process:
+    def spawn_process(self, retry=None, exc_handler=None, disable_insecure_warning=True, **kwargs) -> multiprocessing.Process:
         """
         Wrapper for starting the background service process.
 
@@ -205,7 +205,7 @@ class BaseService(ABC):
         Actual implementation inside class ServiceObjProxy
         """
         raise NotImplementedError("Creating a service process directly is no longer supported in version 0.0.3 and "
-                                  "above")
+                                  "above. Check the updated documentation for a full list of changes")
 
     def _clear_requests(self):
         """
