@@ -116,10 +116,6 @@ class TestManualManager(unittest.TestCase):
         self.assertEqual(manager.being_solved(id) + manager.available(batch_id=id), 0)
 
         manager.stop()
-        with self.assertRaises(ValueError):
-            manager.send_request('https://test.com', 'x', 'v2')
-
-
         service.stop()
         proc.join()
 
