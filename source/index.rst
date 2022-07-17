@@ -592,8 +592,8 @@ Changes in AutoManagers
 Changes in Service Processes
 +++++++++++++++++++++++++++++
 
-* Flags are no longer needed to create service processes. Refer to :ref:`this <Stopping the AutoManager>` section for details on stopping the AutoManager.
-* | Unlike previously, instances of the services needs to be created before you can start a service process. Consider this code below which would work in previous versions to start a service process:
+* Flags are no longer needed to create service processes. Refer to :ref:`this <Starting & stopping services>` section for details on stopping service processes.
+* | Unlike previously, instances of the services needs to be created before you can :ref:`start a service process <Starting & stopping services>`. Consider this code below which would work in previous versions to start a service process:
 
    .. code-block:: python
 
