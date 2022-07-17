@@ -19,10 +19,11 @@ Here's a quick rundown of its other core features
 - __Efficiency__ - Apart from sending HTTP requests to communicate with the solving service's API in a separate background process, the requests are also sent asynchronously so that the service response times do not slow down scripts requiring a high volume of recaptchas
 
 
-However, recaptcha-manager is not suitable for all applications. Some things to keep in mind:
-- Only supports Python 3.4 and above
+**However, recaptcha-manager is not suitable for all applications. Some things to keep in mind:**
+
+- Only supports Python 3.5 and above
 - Only recaptcha-v2 and recaptcha-v3 are supported
-- Only practical for use cases which repeatedly require captcha tokens for the same site
+- Support available only for Windows systems
 
 ## Installation
 
@@ -33,8 +34,7 @@ pip install recaptcha_manager
 
 ## Usage / Documentation
 
-Recaptcha-manager is relatively simple to integrate in any application. To familiarize yourself with all tools it offers, you can check out the [documentation](https://recaptcha-manager.readthedocs.io/en/latest/). 
-Additionally, you can access full-code examples [here](https://github.com/charxhit/recaptcha-manager/tree/main/examples).
+Recaptcha-manager is relatively simple to integrate in any application. Check out the [documentation](https://recaptcha-manager.readthedocs.io/en/latest/) to familiarize yourself with all the tools it offers, usage instructions and additional links to other resources to make your program solve recaptchas efficiently and effortlessly. Additionally, you can access full-code examples [here](https://github.com/charxhit/recaptcha-manager/tree/main/examples).
 
 ## Development
 
