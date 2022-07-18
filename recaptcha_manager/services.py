@@ -106,7 +106,7 @@ class BaseService(ABC):
         raise type(self.exc[0])(self.exc[1])
 
     @classmethod
-    def create_service(cls, *args, **kwargs):
+    def create_service(cls, key, request_queue):
         """
         Properly initializes a class instance.
 
@@ -124,7 +124,7 @@ class BaseService(ABC):
 
         # Create and store instance. We must store this proxy instance since its passed in request_queue to another
         # process whenever a captcha request is required. This allows sharing of state between processes.
-        inst = eval("manager.{}(args, kwargs, proxy_ini=True)".format(class_str))
+        inst = eval("manager.{}(key, request_queue, proxy_ini=True)".format(class_str))
         inst.set_proxy(inst)
 
         return inst
@@ -258,6 +258,7 @@ class BaseService(ABC):
                     try:
                         # cap_info is a dictionary containing a manager and time when it was
                         # added to request_queue. Example: {'manager':..., 'timeRequested':...}
+
                         cap_info = self.request_queue.get(block=False)
                     except queue.Empty:
                         break
