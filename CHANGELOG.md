@@ -30,6 +30,12 @@ All notable changes to this project will be documented in this file. Dates in fo
 
 Other, more specific and major semantic changes have been listed in the documentation [here](https://recaptcha-manager.readthedocs.io/en/latest/#version-0-0-3-backwards-compatibility)
 
+## [0.0.4] - 19-07-2022
+## Fixed
+- TypeError when using a service
+- Other minor bugs
+
+
 
 
 
