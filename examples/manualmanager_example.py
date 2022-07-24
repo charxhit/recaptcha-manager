@@ -31,7 +31,7 @@ def main(total_run):
 
         # Get the captcha request using the id that we got
         try:
-            captcha_answer = manager.get_request(batch_id=batch_id, max_block=120)
+            captcha_answer = manager.get_request(batch_id=batch_id, max_block=30)
         except recaptcha_manager.exceptions.Exhausted:
             break  # Manager is no longer usable
         except (recaptcha_manager.exceptions.TimeOutError, recaptcha_manager.exceptions.EmptyError):

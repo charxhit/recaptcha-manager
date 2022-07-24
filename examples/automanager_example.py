@@ -19,8 +19,8 @@ def main(total_run):
     manager = AutoManager.create(request_queue=request_queue, url=url, web_key=site_key, captcha_type=captcha_type)
 
     # Create a service, and spawn a service process. Uncomment to use 2Captcha instead
-    # service = TwoCaptcha.create_service(key=api_key, request_queue=request_queue)
-    service = AntiCaptcha.create_service(key=api_key, request_queue=request_queue)
+    service = TwoCaptcha.create_service(key=api_key, request_queue=request_queue)
+    # service = AntiCaptcha.create_service(key=api_key, request_queue=request_queue)
     service_proc = service.spawn_process(exc_handler=exc_handler)
 
     count = 0
@@ -31,7 +31,7 @@ def main(total_run):
         # Signal Automanager to send optimal number of requests, and then wait till one is solved
         manager.send_request(initial=2)
         try:
-            captcha_answer = manager.get_request(max_block=120)
+            captcha_answer = manager.get_request(max_block=60)
         except recaptcha_manager.exceptions.Exhausted:
             break  # Manager is no longer usable
         except recaptcha_manager.exceptions.TimeOutError:
