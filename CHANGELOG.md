@@ -36,6 +36,12 @@ Other, more specific and major semantic changes have been listed in the document
 - Other minor bugs
 
 
+## [0.0.5] - 19-07-2022
+## Fixed
+- Fixed bug which led to AttributeError when attempting to pass error raised from service process to manager
+- Fixed formatting issues and erroneous docstrings
+- Added soft_id parameter for 2Captcha
+
 
 
 

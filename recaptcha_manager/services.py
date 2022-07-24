@@ -188,7 +188,6 @@ class BaseService(ABC):
         """
         Wrapper for starting the background service process.
 
-
         :param urllib3.util.Retry retry: Retry object to be added to each request
         :param callable exc_handler: An optional user-defined function which runs whenever an exception occurs. Defaults
                                      to None
@@ -197,9 +196,9 @@ class BaseService(ABC):
         :returns: Started solving service process
         :rtype: multiprocessing.Process
 
-        The optional ``exc_handler`` parameter takes a callable which is called everytime an exception occurs. The
+        The optional exc_handler parameter takes a callable which is called everytime an exception occurs. The
         exception is passed as a parameter to the callable. By default, after the exception occurs and
-        ``exc_handler`` has been called, the request that raised the exception is retried. However, you can raise the
+        exc_handler has been called, the request that raised the exception is retried. However, you can raise the
         exception from within the handler in which case the service process will quit.
 
         Actual implementation inside class ServiceObjProxy
@@ -226,13 +225,12 @@ class BaseService(ABC):
 
     def requests_manager(self, exc_handler=None, retry=None, disable_insecure_warning=True):
         """
-        Main function which produces captcha tokens based on requests in ``request_queue`` through a captcha solving
-        service. Exits when ``stopped.value`` is set to ``False``
+        Main function responsible for reading requests from request_queue and sending tasks to appropriate solving
+        services.
 
         :param callable exc_handler: An optional user-defined function which runs whenever an exception occurs.
         :param requests.packages.urllib3.util.retry.Retry retry: Retry object to be added to each request
-        :param boolean disable_insecure_warning: Whether or not to disable
-                                                :exc:`~urllib3.exceptions.InsecureRequestWarning`
+        :param boolean disable_insecure_warning: Whether to disable urllib3.exceptions.InsecureRequestWarning
 
 
         Keep in mind that this function blocks until the service is stopped. Therefore, if you are calling this
@@ -409,7 +407,7 @@ class BaseService(ABC):
                 elif response.remove_request is False:
                     # This means there was an error in solving this request, hence we remove it and add it back to be
                     # solved later
-                    manager: recaptcha_manager.manager.BaseRequest = response.request
+                    manager: recaptcha_manager.manager.BaseRequest = response.request['manager']
                     manager.request_failed(job=response.request['job'])
 
         # We remove completed tasks from self.unsolved list
@@ -530,21 +528,20 @@ class ServiceObjProxy(ObjProxy):
 
     def spawn_process(self, retry=None, exc_handler=None, disable_insecure_warning=True) -> multiprocessing.Process:
         """
-        Wrapper for starting :meth:`~BaseService.requests_manager` in another process.
+        Wrapper for starting service process in another process.
 
 
         :param urllib3.util.Retry retry: Retry object to be added to each request
         :param callable exc_handler: An optional user-defined function which runs whenever an exception occurs. Defaults
                                      to None
-        :param boolean disable_insecure_warning: Whether or not to disable
-                                                :exc:`~urllib3.exceptions.InsecureRequestWarning`
+        :param boolean disable_insecure_warning: Whether to disable urllib3.exceptions.InsecureRequestWarning
 
-        :returns: Started :meth:`~BaseService.requests_manager` process
+        :returns: Started service process
         :rtype: multiprocessing.Process
 
-        The optional ``exc_handler`` parameter takes a callable which is called everytime an exception occurs. The
+        The optional exc_handler parameter takes a callable which is called everytime an exception occurs. The
         exception is passed as a parameter to the callable. By default, after the exception occurs and
-        ``exc_handler`` has been called, the request that raised the exception is retried. However, you can raise the
+        exc_handler has been called, the request that raised the exception is retried. However, you can raise the
         exception from within the handler in which case the service process will quit
         """
 
@@ -760,6 +757,7 @@ class TwoCaptcha(BaseService):
     name = '2captcha'
     api_url = 'http://2captcha.com/'
     cost = 0.003
+    ID = 3421
 
     @classmethod
     def create_service(cls, key, request_queue):
@@ -908,11 +906,11 @@ class TwoCaptcha(BaseService):
         # Based on captcha_type, we create a request with relevant post-data
         if job.captcha_type == 'v2':
             data = self.api_url + "in.php?key={}&method=userrecaptcha&googlekey={}&pageurl={}&invisible={}&" \
-                   "json=1".format(self.key, job.web_key, job.url, invisible)
+                   "json=1&soft_id={}".format(self.key, job.web_key, job.url, invisible, self.ID)
         elif job.captcha_type == 'v3':
             data = self.api_url + "in.php?key={}&method=userrecaptcha&version=v3&action={}&min_score={}&" \
-                   "googlekey={}&pageurl={}&json=1".format(self.key, job.action, job.min_score, job.web_key,
-                                                           job.url)
+                   "googlekey={}&pageurl={}&json=1&soft_id={}".format(self.key, job.action, job.min_score, job.web_key,
+                                                                      job.url, self.ID)
 
         # We now send the request asynchronously and add a response hook to parse the server response in the background
         r = self.session.post(data, verify=False, timeout=7, hooks={'response': self._api_parse_request(request)})
