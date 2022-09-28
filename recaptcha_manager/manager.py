@@ -1,5 +1,4 @@
 import traceback
-from abc import ABC, abstractmethod
 import types
 import time
 import queue
@@ -59,7 +58,7 @@ class ObjProxy(NamespaceProxy):
         return result
 
 
-class BaseRequest(ABC):
+class BaseRequest:
     """Base class for managers"""
     scheme_check = r'https?:\/\/'
 
@@ -238,13 +237,12 @@ class BaseRequest(ABC):
                 except queue.Empty:
                     break
 
-    @abstractmethod
-    def get_request(self, send_custom_reqs=True, max_block=0):
-        pass
 
-    @abstractmethod
+    def get_request(self, send_custom_reqs=True, max_block=0):
+        raise NotImplementedError
+
     def send_request(self, maximum=None, initial=None):
-        pass
+        raise NotImplementedError
 
     def get_solved(self):
         """

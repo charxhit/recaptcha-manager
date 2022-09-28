@@ -1,6 +1,5 @@
 import traceback
 import warnings
-from abc import abstractmethod, ABC
 from requests_futures.sessions import FuturesSession
 from concurrent.futures._base import Future
 import multiprocess as multiprocessing
@@ -27,7 +26,7 @@ class CustomBaseManager(multiprocessing.managers.BaseManager):
     pass
 
 
-class BaseService(ABC):
+class BaseService:
     """Base class for all Services. Acts as an interface between your program and captcha service"""
 
     session = None
@@ -443,21 +442,17 @@ class BaseService(ABC):
         # We call requestsSolved to edit relevant counters.
         manager.request_solved(error=True)
 
-    @abstractmethod
     def _api_parse_request(self, d):
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def _api_parse_answer(self, request):
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def _api_register_request(self, request):
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def _api_fetch_answer(self, request):
-        pass
+        raise NotImplementedError
 
 
 class DummyFuture:
