@@ -42,6 +42,10 @@ Other, more specific and major semantic changes have been listed in the document
 - Fixed formatting issues and erroneous docstrings
 - Added soft_id parameter for 2Captcha
 
+## [0.0.6] - 28-09-2022
+## Removed 
+- BaseService and BaseRequest no longer inherit from abc.ABC to create abstract classes. These changes will make subclasses picklable for further releases.
+
 
 
 
