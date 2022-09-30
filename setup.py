@@ -21,8 +21,7 @@ setup(
         "Operating System :: Microsoft :: Windows",
     ],
     python_requires='>=3.5',
-    package_dir={'recaptcha_manager':'recaptcha_manager'},
-    packages=['recaptcha_manager'],
+    packages=['recaptcha_manager', 'recaptcha_manager.api'],
     install_requires=['requests-futures >=1.0.0;platform_system=="Windows"',
                       'multiprocess;platform_system=="Windows"']
 )
