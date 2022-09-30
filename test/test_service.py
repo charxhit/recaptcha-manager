@@ -1,9 +1,8 @@
 import unittest
 import time
-import requests.exceptions
-from recaptcha_manager import AntiCaptcha, generate_queue, AutoManager
-from recaptcha_manager.exceptions import BadDomainError, BadSiteKeyError, BadAPIKeyError, NoBalanceError, LowBidError
-from recaptcha_manager.services import DummyService
+from recaptcha_manager.api import AntiCaptcha, generate_queue, AutoManager
+from recaptcha_manager.api.exceptions import BadDomainError, BadSiteKeyError, BadAPIKeyError, NoBalanceError, LowBidError
+from recaptcha_manager.api.services import DummyService
 
 class AntiCaptchaBadURL(AntiCaptcha):
     api_url = 'urlWithMissingSchema'
@@ -13,14 +12,6 @@ class MyClass:
     @staticmethod
     def exc_handler():
         pass
-
-
-def wrapper(flag, request_queue, key, status_flag):
-    # proc = multiprocessing.Process(target=MyAntiCaptcha.requests_manager, args=(stopped, request_queue, '', ))
-    try:
-        AntiCaptchaBadURL.requests_manager(flag, request_queue, key)
-    except requests.exceptions.MissingSchema:
-        status_flag.value = True
 
 
 class TestService(unittest.TestCase):

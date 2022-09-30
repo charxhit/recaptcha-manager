@@ -1,10 +1,11 @@
-from recaptcha_manager import AntiCaptcha, TwoCaptcha, AutoManager, generate_queue
+import recaptcha_manager.configuration
+from recaptcha_manager.api import AutoManager, generate_queue
 import queue
 import time
 import unittest
-import multiprocess as multiprocessing
-import recaptcha_manager.exceptions as exc
-from recaptcha_manager.services import DummyService
+from recaptcha_manager.api import multiprocessing
+import recaptcha_manager.api.exceptions as exc
+from recaptcha_manager.api.services import DummyService
 
 
 def worker_send(manager):
@@ -33,7 +34,7 @@ class TestAutoManager(unittest.TestCase):
         inst.stop()
 
         for _ in range(5):
-            inst.get_request(max_block=2)
+            inst.get_request(max_block=3)
 
         inst.send_request(initial=5)
 

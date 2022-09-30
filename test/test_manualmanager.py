@@ -1,11 +1,11 @@
 import queue
 import time
 import unittest
-import multiprocess as multiprocessing
-from recaptcha_manager.manager import ManualManager
-from recaptcha_manager.services import DummyService
-from recaptcha_manager import generate_queue
-from recaptcha_manager.exceptions import InvalidBatchID, BadDomainError, TimeOutError, EmptyError, Exhausted
+from recaptcha_manager.api import multiprocessing
+from recaptcha_manager.api.manager import ManualManager
+from recaptcha_manager.api.services import DummyService
+from recaptcha_manager.api import generate_queue
+from recaptcha_manager.api.exceptions import InvalidBatchID, BadDomainError, TimeOutError, EmptyError, Exhausted
 
 
 def worker_send(manager):
