@@ -1,5 +1,5 @@
-from recaptcha_manager import ManualManager, AntiCaptcha, TwoCaptcha
-import recaptcha_manager
+from recaptcha_manager.api import ManualManager, AntiCaptcha, TwoCaptcha
+import recaptcha_manager.api
 import random
 import time
 
@@ -14,7 +14,7 @@ def exc_handler(exc):
 def main(total_run):
 
     # Create a queue and an Manualmanager instance
-    request_queue = recaptcha_manager.generate_queue()
+    request_queue = recaptcha_manager.api.generate_queue()
     manager = ManualManager.create(request_queue=request_queue)
 
     # Create a service, and spawn a service process. Uncomment to use 2Captcha instead
@@ -32,9 +32,9 @@ def main(total_run):
         # Get the captcha request using the id that we got
         try:
             captcha_answer = manager.get_request(batch_id=batch_id, max_block=30)
-        except recaptcha_manager.exceptions.Exhausted:
+        except recaptcha_manager.api.exceptions.Exhausted:
             break  # Manager is no longer usable
-        except (recaptcha_manager.exceptions.TimeOutError, recaptcha_manager.exceptions.EmptyError):
+        except (recaptcha_manager.api.exceptions.TimeOutError, recaptcha_manager.api.exceptions.EmptyError):
             # This may be the first few captcha requests (which take longer) or some issue is there with solving
             # service. So, we continue to top where it will check for errors in captcha solving service and send more
             # requests
@@ -76,4 +76,6 @@ total_runs = 5
 
 # Remember to protect your main with this clause!
 if __name__ == "__main__":
+    if not api_key:
+        raise ValueError('no value for "api_key" provided')
     main(total_runs)

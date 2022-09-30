@@ -1,5 +1,5 @@
-from recaptcha_manager import AutoManager, AntiCaptcha, TwoCaptcha
-import recaptcha_manager
+from recaptcha_manager.api import AutoManager, AntiCaptcha, TwoCaptcha
+import recaptcha_manager.api
 import random
 import time
 
@@ -15,7 +15,7 @@ def exc_handler(exc):
 def main(total_run):
 
     # Create a queue and an Automanager instance
-    request_queue = recaptcha_manager.generate_queue()
+    request_queue = recaptcha_manager.api.generate_queue()
     manager = AutoManager.create(request_queue=request_queue, url=url, web_key=site_key, captcha_type=captcha_type)
 
     # Create a service, and spawn a service process. Uncomment to use 2Captcha instead
@@ -32,9 +32,9 @@ def main(total_run):
         manager.send_request(initial=2)
         try:
             captcha_answer = manager.get_request(max_block=60)
-        except recaptcha_manager.exceptions.Exhausted:
+        except recaptcha_manager.api.exceptions.Exhausted:
             break  # Manager is no longer usable
-        except recaptcha_manager.exceptions.TimeOutError:
+        except recaptcha_manager.api.exceptions.TimeOutError:
             # This may be the first few captcha requests (which take longer) or some issue is there with solving
             # service. So, we continue to top where it will check for errors in captcha solving service and send more
             # requests
@@ -71,8 +71,11 @@ site_key = '6Le-wvkSAAAAAPBMRTvw0Q4Muexq9bi0DJwx_mJ-'
 api_key = ''
 captcha_type = 'v2'
 url = 'https://www.google.com/recaptcha/api2/demo'
-total_runs = 40
+total_runs = 20
 
 # Remember to protect your main with this clause!
 if __name__ == "__main__":
+    if not api_key:
+        raise ValueError('no value for "api_key" provided')
+
     main(total_runs)
