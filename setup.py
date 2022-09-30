@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="recaptcha-manager",
-    version="0.0.6",
+    version="0.0.7",
     author="Charchit Agarwal",
     author_email="charchit.a00@gmail.com",
     url="https://www.github.com/charxhit/recaptcha-manager",
