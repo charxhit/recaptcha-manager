@@ -79,7 +79,7 @@ For convenience, there are full code examples provided `here <https://github.com
 
 The following sections go into more details about the capabilities of manager and service processes.
 
-.. py:currentmodule:: recaptcha_manager
+.. py:currentmodule:: recaptcha_manager.api.manager
 
 Choosing a Manager
 ====================================
@@ -138,14 +138,18 @@ AutoManager
 
 To create an AutoManager, you will first need to create a queue using the :meth:`generate_queue` method. Then, an object of :class:`~AutoManager` can be created using the :meth:`~AutoManager.create`. Since this manager can only solve one kind of recaptcha per instance, you will need to pass the captcha details during instantiation. Example for creating an :class:`~AutoManager` that solves a recaptcha v2 captcha::
 
-   request_queue = recaptcha_manager.generate_queue()
-   manager =  recaptcha_manager.AutoManager.create(request_queue, url='https://full.domain.here', sitekey='xxxx',
-                                                   captcha_type='v2')
+   from recaptcha_manager.api import AutoManager
+
+   request_queue = recaptcha_manager.api.generate_queue()
+   manager =  AutoManager.create(request_queue, url='https://full.domain.here', sitekey='xxxx',
+                                            captcha_type='v2')
 
 Example for creating an :class:`~AutoManager` for solving recaptcha v3 captcha::
 
-    request_queue = recaptcha_manager.generate_queue()
-    manager =  recaptcha_manager.AutoManager.create(request_queue, url='https://full.domain.here', sitekey='xxxx',
+    from recaptcha_manager.api import AutoManager
+
+    request_queue = recaptcha_manager.api.generate_queue()
+    manager =  AutoManager.create(request_queue, url='https://full.domain.here', sitekey='xxxx',
                                                    captcha_type='v3', action='recaptcha-action', min_score=0.7)
 
 
@@ -153,28 +157,29 @@ Sending, and receiving captcha requests
 -----------------------------------------
 To signal :class:`~AutoManager` to send more captcha requests, you can use the :meth:`~AutoManager.send_request` method. It analyses collected data about your program's captcha usage and sends the optimal number of captcha requests to the solving service in the background automatically. If the analysis determines that no new captcha requests need to be sent, then :meth:`~AutoManager.send_request` does not send any, even if it is repeatedly called. So you can (and should) call this method regularly without any risk for over-sending attached. However, keep in mind that incase there isn't enough data to analyse, :class:`~AutoManager` simply sends a pre-defined number of request(s) (default is one). This may result in higher waiting times when you request the answers to the first few captchas using a newly created AutoManager. If this bothers you, then you can override the number of requests to send in such cases using the `initial` parameter::
 
-   request_queue = recaptcha_manager.generate_queue()
-   manager =  recaptcha_manager.AutoManager.create(request_queue, url='https://full.domain.here', sitekey='xxxx',
+
+   request_queue = recaptcha_manager.api.generate_queue()
+   manager =  AutoManager.create(request_queue, url='https://full.domain.here', sitekey='xxxx',
                                                    captcha_type='v2)
    manager.send_request(initial=4)  # Instead of default 1, four requests will be sent if data inadequate to make predictions
 
-Next, to get a captcha answer, use the :meth:`~AutoManager.get_request` method. By default, it blocks until a captcha answer is available. However, internal fail-safes make sure that there are adequate captcha requests being solved, sending more whenever necessary, to prevent an infinite block. Overtime, as :class:`~AutoManager` collects more data, this block time will become almost negligible. Lastly, if the manager is :ref:`stopped <Stopping the AutoManager>`, and all available captcha requests have been used, :meth:`~AutoManager.get_request` will raise a :exc:`~exceptions.Exhausted` exception, signalling that this instance of :class:`~AutoManager` is no longer usable. Example code to properly receive captcha::
+Next, to get a captcha answer, use the :meth:`~AutoManager.get_request` method. By default, it blocks until a captcha answer is available. However, internal fail-safes make sure that there are adequate captcha requests being solved, sending more whenever necessary, to prevent an infinite block. Overtime, as :class:`~AutoManager` collects more data, this block time will become almost negligible. Lastly, if the manager is :ref:`stopped <Stopping the AutoManager>`, and all available captcha requests have been used, :meth:`~AutoManager.get_request` will raise a :exc:`~recaptcha_manager.api.exceptions.Exhausted` exception, signalling that this instance of :class:`~AutoManager` is no longer usable. Example code to properly receive captcha::
 
    try:
       captcha = manager.get_request()
-   except recaptcha_manager.exceptions.Exhausted:
+   except recaptcha_manager.api.exceptions.Exhausted:
       print('No more captcha requests left')
    else:
       print(f"Token is {captcha['answer']}")
       print(f"It cost ${captcha['cost']}")
 
-Also, :meth:`~AutoManager.get_request` supports ``max_block`` as a parameter. If ``max_block`` provided is a non-zero value, then the function waits at most ``max_block`` seconds for a captcha answer to be available (if there is none already), after which it raises :exc:`~exceptions.TimeOutError` and returns control back to you. Keep in mind, however, that ``max_block`` should be used with caution since it may skew the data collected by the manager. Therefore, it is advised to not use a value lower than 60 if you are using ``max_block`` parameter. Example of using ``max_block``::
+Also, :meth:`~AutoManager.get_request` supports ``max_block`` as a parameter. If ``max_block`` provided is a non-zero value, then the function waits at most ``max_block`` seconds for a captcha answer to be available (if there is none already), after which it raises :exc:`~recaptcha_manager.api.exceptions.TimeOutError` and returns control back to you. Keep in mind, however, that ``max_block`` should be used with caution since it may skew the data collected by the manager. Therefore, it is advised to not use a value lower than 60 if you are using ``max_block`` parameter. Example of using ``max_block``::
 
    try:
       captcha = manager.get_request(max_block=60)
-   except recaptcha_manager.exceptions.Exhausted:
+   except recaptcha_manager.api.exceptions.Exhausted:
       print('No more captcha requests left')
-   except recaptcha_manager.exceptions.TimeOutError:
+   except recaptcha_manager.api.exceptions.TimeOutError:
       print('Timed out!')
    else:
       print(f"Token is {captcha['answer']}")
@@ -185,9 +190,9 @@ Also, :meth:`~AutoManager.get_request` supports ``max_block`` as a parameter. If
 Stopping the AutoManager
 -----------------------------------
 
-When you no longer need new recaptcha tokens, you can call :meth:`~AutoManager.stop` after which no new captcha requests will be sent even if you call :meth:`~AutoManager.send_request`. However, requests already solved, or currently being solved by the captcha service, will not be affected. Once all requests have been solved, AND used, only then will the manager no longer be usable. All subsequent calls to :meth:`~AutoManager.get_request` will then raise :exc:`~exceptions.Exhausted` exception.
+When you no longer need new recaptcha tokens, you can call :meth:`~AutoManager.stop` after which no new captcha requests will be sent even if you call :meth:`~AutoManager.send_request`. However, requests already solved, or currently being solved by the captcha service, will not be affected. Once all requests have been solved, AND used, only then will the manager no longer be usable. All subsequent calls to :meth:`~AutoManager.get_request` will then raise :exc:`~recaptcha_manager.api.exceptions.Exhausted` exception.
 
-Alternatively, you can use :meth:`~AutoManager.force_stop` as well. Unlike the simple :meth:`~AutoManager.stop`, force stopping the manager means that all solved captcha requests, including those which are in the process of being solved, are immediately discarded. All subsequent calls to receive captcha answers via :meth:`~ManualManager.get_request` will then immediately raise :exc:`~exceptions.Exhausted`. Keep in mind that both these methods can only be called once per manager, and :meth:`~AutoManager.stop` cannot be called if :meth:`~AutoManager.force_stop` was already called. However, you can call :meth:`~AutoManager.force_stop` even if :meth:`~AutoManager.stop` was called before. For example, this is correct and doable::
+Alternatively, you can use :meth:`~AutoManager.force_stop` as well. Unlike the simple :meth:`~AutoManager.stop`, force stopping the manager means that all solved captcha requests, including those which are in the process of being solved, are immediately discarded. All subsequent calls to receive captcha answers via :meth:`~ManualManager.get_request` will then immediately raise :exc:`~recaptcha_manager.api.exceptions.Exhausted`. Keep in mind that both these methods can only be called once per manager, and :meth:`~AutoManager.stop` cannot be called if :meth:`~AutoManager.force_stop` was already called. However, you can call :meth:`~AutoManager.force_stop` even if :meth:`~AutoManager.stop` was called before. For example, this is correct and doable::
 
    manager.stop()
    manager.force_stop()
@@ -255,8 +260,10 @@ ManualManager
 
 To create a manager, you will first need to create a queue using the :meth:`generate_queue` method. Then, an object of :class:`~ManualManager` can be created using the :meth:`~ManualManager.create`. ::
 
-   request_queue = recaptcha_manager.generate_queue()
-   manager =  recaptcha_manager.ManualManager.create(request_queue)
+   from recaptcha_manager.api import ManualManager
+
+   request_queue = recaptcha_manager.api.generate_queue()
+   manager =  ManualManager.create(request_queue)
 
 Sending, and receiving captcha requests
 -----------------------------------------
@@ -286,33 +293,33 @@ This ``batch_id`` is actually a hash of the parameters created with sha256, and 
 
 Out of these, **Captcha A, B** and **C** will generate identical ``batch_id`` while **Captcha D, E** will generate unique ``batch_id`` because of a unique combination of captcha-parameters when compared to others. If you want :class:`~ManualManager` to use the full url instead of just the domain when sending captcha request and generating ``batch_id``, set parameter ``force_path`` as `True` when using :meth:`~ManualManager.send_request`. Doing so will force **Captcha A, B, C** to generate unique ``batch_id`` as well.
 
-The ``batch_id`` generated can now be used to get answers for the particular captchas you want by providing them to :meth:`~ManualManager.get_request`. By default, this function blocks until a captcha answer is available, but will also raise :exc:`~exceptions.EmptyError` if no captcha task with the given ``batch_id`` is being solved and parameter ``force_return`` is set to `True` (the default value). Additionally, if the manager is stopped, and there are no longer any captcha answers left to be used, :meth:`~ManualManager.get_request` will raise an :exc:`~exceptions.Exhausted` exception, signalling that this instance of :class:`~ManualManager` is no longer usable::
+The ``batch_id`` generated can now be used to get answers for the particular captchas you want by providing them to :meth:`~ManualManager.get_request`. By default, this function blocks until a captcha answer is available, but will also raise :exc:`~recaptcha_manager.api.exceptions.EmptyError` if no captcha task with the given ``batch_id`` is being solved and parameter ``force_return`` is set to `True` (the default value). Additionally, if the manager is stopped, and there are no longer any captcha answers left to be used, :meth:`~ManualManager.get_request` will raise an :exc:`~recaptcha_manager.api.exceptions.Exhausted` exception, signalling that this instance of :class:`~ManualManager` is no longer usable::
 
    try:
       captcha = manager.get_request(id=id)
 
-   except recaptcha_manager.Exhausted:
+   except recaptcha_manager.api.exceptions.Exhausted:
       print('No more captcha requests left, the manager is no longer usable')
 
-   except recaptcha_manager.Empty:
+   except recaptcha_manager.api.exceptions.Empty:
       print('No requests being solved for provided id. Try sending more requests')
 
    else:
       print(f"Token is {captcha['answer']}")
       print(f"It cost ${captcha['cost']}")
 
-Adding on, you can also specify the function a maximum time to wait, in seconds, for the captcha answer by using the ``max_block`` parameter. If no captcha is available in that time frame, :exc:`~exceptions.TimeOutError` exception will be raised. It is recommended that you at least set ``max_block`` to a non-zero value, or keep ``force_return`` as true to avoid a possibility for an infinite block. These two parameters can also be used together::
+Adding on, you can also specify the function a maximum time to wait, in seconds, for the captcha answer by using the ``max_block`` parameter. If no captcha is available in that time frame, :exc:`~recaptcha_manager.api.exceptions.TimeOutError` exception will be raised. It is recommended that you at least set ``max_block`` to a non-zero value, or keep ``force_return`` as true to avoid a possibility for an infinite block. These two parameters can also be used together::
 
    try:
       captcha = manager.get_request(id=id, max_block=30)
 
-   except recaptcha_manager.Exhausted:
+   except recaptcha_manager.api.exceptions.Exhausted:
       print('No more captcha requests left')
 
-   except recaptcha_manager.TimeOutError:
+   except recaptcha_manager.api.exceptions.TimeOutError:
       print('Maximum waiting time exceeded! Try sending more requests.')
 
-   except recaptcha_manager.Empty:
+   except recaptcha_manager.api.exceptions.Empty:
       print('No requests being solved for provided id. Try sending more requests')
 
    else:
@@ -321,11 +328,11 @@ Adding on, you can also specify the function a maximum time to wait, in seconds,
 
 Stopping the ManualManager
 --------------------------------------
-When you no longer need new recaptcha tokens, you can call :meth:`~ManualManager.stop` after which no new captcha requests will be sent even if you call :meth:`~ManualManager.send_request`. However, requests already solved, or requests already sent and currently being solved by the captcha service, will not be affected. Once all requests have been solved, and then used as well, only then will the manager no longer be usable. All subsequent calls to :meth:`~ManualManager.get_request` after this will return a :exc:`~exceptions.Exhausted` error::
+When you no longer need new recaptcha tokens, you can call :meth:`~ManualManager.stop` after which no new captcha requests will be sent even if you call :meth:`~ManualManager.send_request`. However, requests already solved, or requests already sent and currently being solved by the captcha service, will not be affected. Once all requests have been solved, and then used as well, only then will the manager no longer be usable. All subsequent calls to :meth:`~ManualManager.get_request` after this will return a :exc:`~recaptcha_manager.api.exceptions.Exhausted` error::
 
    manager.stop()
 
-Alternatively, you can use :meth:`~ManualManager.force_stop` as well. Unlike the simple :meth:`~ManualManager.stop`, force stopping the manager means that all already solved captcha requests, including those which are in the process of being solved, are immediately discarded. All subsequent calls to receive captcha answers via :meth:`~ManualManager.get_request` will then immediately raise :exc:`~exceptions.Exhausted`. Keep in mind that both these methods can only be called once per manager, and :meth:`~ManualManager.stop` cannot be called if :meth:`~ManualManager.force_stop` was already called. However, you can call :meth:`~ManualManager.force_stop` even if :meth:`~ManualManager.stop` was called before. For example, this is correct and doable::
+Alternatively, you can use :meth:`~ManualManager.force_stop` as well. Unlike the simple :meth:`~ManualManager.stop`, force stopping the manager means that all already solved captcha requests, including those which are in the process of being solved, are immediately discarded. All subsequent calls to receive captcha answers via :meth:`~ManualManager.get_request` will then immediately raise :exc:`~recaptcha_manager.api.exceptions.Exhausted`. Keep in mind that both these methods can only be called once per manager, and :meth:`~ManualManager.stop` cannot be called if :meth:`~ManualManager.force_stop` was already called. However, you can call :meth:`~ManualManager.force_stop` even if :meth:`~ManualManager.stop` was called before. For example, this is correct and doable::
 
    manager.stop()
    manager.force_stop()
@@ -352,6 +359,8 @@ To get the number of captchas already solved and available, use :meth:`AutoManag
 
 For both these methods, if you do not specify a ``batch_id``, the manager will return the information requested for all ``batch_id`` instead.
 
+.. py:currentmodule::recaptcha_manager.api.services
+
 Service processes
 ===================================
 
@@ -360,16 +369,18 @@ Service processes are background processes used to communicate with the captcha 
 Starting & stopping services
 ++++++++++++++++++++++++++++++++
 
-To start a service process you must first choose the solving service you want to use. Recaptcha-manager supports three: AntiCaptcha, 2Captcha and CapMonster. All three services have their own classes which behave identically. Additionally, you would also require a queue which can be created using :func:`recaptcha_manager.generate_queue` function. However, if you have already created a manager, then use the same queue you passed during the creation of the manager. You can now create a service using the :meth:`~recaptcha_manager.BaseService.create_service` method by passing the queue and the solving service's API key, and then using the :func:`recaptcha_manager.spawn_process` to start the service process. A *very* basic example is given below::
+To start a service process you must first choose the solving service you want to use. Recaptcha-manager supports three: AntiCaptcha, 2Captcha and CapMonster. All three services have their own classes which behave identically. Additionally, you would also require a queue which can be created using :func:`recaptcha_manager.api.generate_queue` function. However, if you have already created a manager, then use the same queue you passed during the creation of the manager. You can now create a service using the :meth:`~BaseService.create_service` method by passing the queue and the solving service's API key, and then using the :meth:`BaseService.spawn_process` to start the service process. A *very* basic example is given below::
+
+   from recaptcha_manager.api import AntiCaptcha, TwoCaptcha, CapMonster
 
    # For Anticaptcha
-   service = recaptcha_manager.AntiCaptcha.create_service(api_key='xxxxx', request_queue=queue)
+   service = AntiCaptcha.create_service(api_key='xxxxx', request_queue=queue)
 
    # For Capmonster
-   service = recaptcha_manager.CapMonster.create_service(api_key='xxxxx', request_queue=queue)
+   service = CapMonster.create_service(api_key='xxxxx', request_queue=queue)
 
    # For 2Captcha
-   service = recaptcha_manager.TwoCaptcha.create_service(api_key='xxxxx', request_queue=queue)
+   service = TwoCaptcha.create_service(api_key='xxxxx', request_queue=queue)
 
    service_proc = service.spawn_process()
 
@@ -392,22 +403,22 @@ Like previously mentioned, service processes are expected to handle communicatio
 
 Service errors and outer-scope
 --------------------------------
-Service specific errors include :exc:`~exceptions.LowBidError`, :exc:`~exceptions.NoBalanceError`, :exc:`~exceptions.BadAPIKeyError`, and :exc:`~exceptions.UnexpectedResponse`. These all are considered severe errors and are automatically raised to the outer scope. If an exception is raised to the outer scope, then the service process stops immediately until you restart it. Additionally, all captcha tasks registered with the captcha service will be lost as well. To get the exception which was raised to the outer scope, one can use :meth:`~BaseService.get_exception` which re-raises the last such exception if it exists, otherwise returns ``None`` if no exception has been raised to the outer-scope since the last time the service process was run. Call this method periodically to make sure that the service process is running without issues. Example::
+Service specific errors include :exc:`~recaptcha_manager.api.exceptions.LowBidError`, :exc:`~recaptcha_manager.api.exceptions.NoBalanceError`, :exc:`~recaptcha_manager.api.exceptions.BadAPIKeyError`, and :exc:`~recaptcha_manager.api.exceptions.UnexpectedResponse`. These all are considered severe errors and are automatically raised to the outer scope. If an exception is raised to the outer scope, then the service process stops immediately until you restart it. Additionally, all captcha tasks registered with the captcha service will be lost as well. To get the exception which was raised to the outer scope, one can use :meth:`~BaseService.get_exception` which re-raises the last such exception if it exists, otherwise returns ``None`` if no exception has been raised to the outer-scope since the last time the service process was run. Call this method periodically to make sure that the service process is running without issues. Example::
 
-   service = recaptcha_manager.AntiCaptcha.create_service(api_key='xxxxx', request_queue=queue)
+   service = AntiCaptcha.create_service(api_key='xxxxx', request_queue=queue)
    service_proc = service.spawn_process()
 
    try:
       service.get_exception()
 
-   except recaptcha_manager.exceptions.LowBidError:
+   except recaptcha_manager.api.exceptions.LowBidError:
       print('Bid too low, raise it from your account settings!')
 
-   except recaptcha_manager.exceptions.NoBalanceError:
+   except recaptcha_manager.api.exceptions.NoBalanceError:
       print('Balance too low, refill from your account dashboard!')
       raise
 
-   except recaptcha_manager.exceptions.BadAPIKeyError:
+   except recaptcha_manager.api.exceptions.BadAPIKeyError:
       print('API key provided is incorrect!')
       raise
 
@@ -421,19 +432,19 @@ Keep in mind that recaptcha-manager is process-safe and uses shared memory (chec
          try:
             service.get_exception()
 
-         except recaptcha_manager.exceptions.LowBidError:
+         except recaptcha_manager.api.exceptions.LowBidError:
             print('Bid too low, raise it from account settings!')
 
-         except recaptcha_manager.exceptions.NoBalanceError:
+         except recaptcha_manager.api.exceptions.NoBalanceError:
             print('Balance too low, refill before continuing!')
 
-         except recaptcha_manager.exceptions.BadAPIKeyError:
+         except recaptcha_manager.api.exceptions.BadAPIKeyError:
             print('API key provided is incorrect!')
 
          time.sleep(10)  # Check status every 10 seconds
 
 
-   service = recaptcha_manager.AntiCaptcha.create_service(api_key='xxxxx', request_queue=queue)
+   service = AntiCaptcha.create_service(api_key='xxxxx', request_queue=queue)
    service_proc = service.spawn_process()
 
    # We continuously check that the service process is running inside another process, which does not disrupt our
@@ -510,14 +521,14 @@ Multiple services
 
 You can use multiple services with recaptcha-manager simultaneously. Even further, you can also control which managers use which services if multiple of them are running. No extra configurations are required to use multiple services, you just simply start two services instead of one with the same queue and use them normally.::
 
-   queue = recaptcha_manager.generate_queue()
+   queue = recaptcha_manager.api.generate_queue()
 
    # Start the anticaptcha service
-   anticap = recaptcha_manager.AntiCaptcha.create_service(api_key='xxxxx', request_queue=queue)
+   anticap = AntiCaptcha.create_service(api_key='xxxxx', request_queue=queue)
    anticap_proc = service.spawn_process(exc_handler=exc_handler)
 
    # Start the 2Captcha service
-   twocap = recaptcha_manager.TwoCaptcha.create_service(api_key='yyyy', request_queue=queue)
+   twocap = TwoCaptcha.create_service(api_key='yyyy', request_queue=queue)
    twocap_proc = service.spawn_process(exc_handler=exc_handler)
 
 Any managers now created using this queue would now send their requests to either anticaptcha or 2captcha,
@@ -525,15 +536,15 @@ whichever gets the request first.
 
 If there are multiple services running, and if you want to create managers that only send captcha requests to particular service(s), you can do that by creating multiple queues, and passing the same queue to the particular manager and the service during creation::
 
-   queue_anticap = recaptcha_manager.generate_queue()
-   queue_twocap = recaptcha_manager.generate_queue()
+   queue_anticap = recaptcha_manager.api.generate_queue()
+   queue_twocap = recaptcha_manager.api.generate_queue()
 
    # Start the anticaptcha service with one of those queues
-   anticap = recaptcha_manager.AntiCaptcha.create_service(api_key='xxxxx', request_queue=queue_anticap)
+   anticap = AntiCaptcha.create_service(api_key='xxxxx', request_queue=queue_anticap)
    anticap_proc = service.spawn_process(exc_handler=exc_handler)
 
    # Start the 2Captcha service with the other queue
-   twocap = recaptcha_manager.TwoCaptcha.create_service(api_key='yyyy', request_queue=queue_two_cap)
+   twocap = TwoCaptcha.create_service(api_key='yyyy', request_queue=queue_two_cap)
    twocap_proc = service.spawn_process(exc_handler=exc_handler)
 
    # This manager will always send any and all captcha requests to anticaptcha service, because both of them share the # same queue
@@ -563,7 +574,7 @@ For example, instead of creating a separate manager in each process, you can cre
       url = 'https://some.domain.com'
       sitekey = 'xxxxxxx'
       captcha_type = 'v2'
-      request_queue = recaptcha_manager.generate_queue()
+      request_queue = recaptcha_manager.api.generate_queue()
       manager = AutoManager(request_queue, url, sitekey, captcha_type)
 
       # Start 8 tasks which require managers. The manager will be synchronized across processes automatically!
@@ -578,19 +589,39 @@ From inside the project root, run::
    python -m unittest
 
 
-Version 0.0.3 & Backwards compatibility
-=============================================
-Version 0.0.3 included several changes to existing structures that are not backwards compatible with previous versions. These changes were done to make the code more predictable, flexible and increase stability for future versions. For convenience, an exhaustive list is provided below. Alternatively, you can also choose to reinstall the previous version of recaptcha-manager, and continue using it with it's relevant `documentation <https://recaptcha-manager.readthedocs.io/en/stable/>`_ while updating your code so it becomes compatible with the later versions.
+Backwards compatibility
+=================================
 
-Changes in AutoManagers
+Recaptcha-manager's API is in active development, and is not yet stable. This means that new features are being added, some of which may break backwards compatibility. While changes to code that breaks backwards compatibility with previous versions are rare, they may happen to improve stability of the package in future. For convenience, an exhaustive list of such changes is provided below. Check this section regularly to stay updated on the latest changes so you can implement them as soon as possible.
+
+Version 0.0.7 and above
+++++++++++++++++++++++++++++++
+Content of modules `generators.py`, `exceptions.py`, `manager.py`, and `services.py` were shifted to a `api` sub-package. What this results in is that importing directly from `recaptcha_manager` will no longer work, you would instead need to import from `recaptcha_manager.api`. Consider the below import statements that would work in previous versions::
+
+   from recaptcha_manager import AutoManager, TwoCaptcha, generate_queue
+   from recaptcha_manager.exceptions import LowBidError, Exhausted
+
+To make them compatible with the newer versions, change them to this::
+
+   from recaptcha_manager.api import AutoManager, TwoCaptcha, generate_queue
+   from recaptcha_manager.api.exceptions import LowBidError, Exhausted
+
+Version 0.0.3 - 0.0.6
 ++++++++++++++++++++++++++++++
 
+Version 0.0.3 included a major update to Managers and services. These changes are documented separately for convenience
+
+.. py:currentmodule::recaptcha_manager.api.manager
+
+Changes in AutoManagers
+---------------------------------
+
 * Method `get_upcoming <https://recaptcha-manager.readthedocs.io/en/stable/#recaptcha_manager.AutoManager.get_upcoming>`_ is no longer available. To get status on captcha requests, refer to section :ref:`Available captchas`.
-* Upon :ref:`stopping <Stopping the AutoManager>` the manager, when there are no more requests left, :meth:`AutoManager.get_request` will raise :exc:`~exceptions.Exhausted` instead of :exc:`queue.Empty`.
+* Upon :ref:`stopping <Stopping the AutoManager>` the manager, when there are no more requests left, :meth:`AutoManager.get_request` will raise :exc:`~recaptcha_manager.api.exceptions.Exhausted` instead of :exc:`queue.Empty`.
 * If the captcha solving service reported an error with the captcha information you provided to the manager, then the error will be raised when you request the captcha using :meth:`AutoManager.get_request` rather than in the service process.
 
 Changes in Service Processes
-+++++++++++++++++++++++++++++
+----------------------------------
 
 * Flags are no longer needed to create service processes. Refer to :ref:`this <Starting & stopping services>` section for details on stopping service processes.
 * | Unlike previously, instances of the services needs to be created before you can :ref:`start a service process <Starting & stopping services>`. Consider this code below which would work in previous versions to start a service process:
@@ -648,10 +679,11 @@ References
 
 This section contains all relevant code and its documentation separated by their classes
 
-.. module:: recaptcha_manager
+
 
 Service classes
 +++++++++++++++++++++++++
+.. module:: recaptcha_manager.api.services
 
 .. autoclass:: AntiCaptcha
    :show-inheritance:
@@ -668,6 +700,8 @@ Service classes
    :members:
    :inherited-members:
 
+.. module:: recaptcha_manager.api.manager
+
 Managers
 +++++++++++++++++++++++++
 
@@ -681,23 +715,23 @@ Managers
 
 Low-level classes
 +++++++++++++++++++++++++
-
+.. py:currentmodule:: recaptcha_manager.api.services
 .. autoclass:: BaseService
    :members:
 
-.. autoclass:: manager.BaseRequest
+.. py:currentmodule:: recaptcha_manager.api.manager
+.. autoclass:: BaseRequest
    :members:
 
 
 Miscellaneous functions
 +++++++++++++++++++++++++
-
-.. autofunction:: recaptcha_manager.generate_queue
+.. module:: recaptcha_manager.api.generators
+.. autofunction:: generate_queue
 
 
 Exceptions
 +++++++++++++++++++++++++
-
-.. automodule:: recaptcha_manager.exceptions
+.. automodule:: recaptcha_manager.api.exceptions
    :members:
 
