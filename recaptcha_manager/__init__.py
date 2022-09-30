@@ -10,7 +10,7 @@ error = NotImplementedError("\n\nIt seems like you are using version 0.0.7+, but
                                   "recaptcha_manager.api instead. For example, to "
                                   "correctly import AutoManager, do:\n\n    from recaptcha_manager.api import "
                                   "AutoManager\n\n"
-                                  "Refer to the latest documentation here: https://recaptcha-manager.readthedocs.io/en/latest/")
+                                  "For information about this change available here : https://recaptcha-manager.readthedocs.io/en/latest/#version-0-0-7-and-above")
 class _Deprecated(type):
     def __getattr__(self, item):
         raise error
