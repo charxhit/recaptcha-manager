@@ -46,7 +46,26 @@ Other, more specific and major semantic changes have been listed in the document
 ## Removed 
 - BaseService and BaseRequest no longer inherit from abc.ABC to create abstract classes. These changes will make subclasses picklable for further releases.
 
+## [0.0.7] - 30-09-2022
+## Added
+- Subpackage `api` was added
 
+## Fixed
+- All proxy classes for services and managers are now picklable by standard pickle module
+
+## Removed
+- All modules within recaptcha-manager were relocated to `api` subpackage
+
+## [0.0.8] 30-09-2022
+
+## Added
+- Submodule `configuration` was added to recaptcha_manager
+- Ability for users to choose whether recaptcha_manager should use standard multiprocessing or multiprocess internally.
+
+## [0.0.9] 01-10-2022
+
+## Fixed
+- SyntaxError in `generators.py` when run in Python3.8>
 
 
 
