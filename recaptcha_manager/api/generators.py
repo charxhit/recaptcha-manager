@@ -32,7 +32,7 @@ def _MakeProxyType(name, exposed, base=None):
     for meth in exposed:
         if hasattr(base, meth):
             continue
-        exec('''def %s(self, /, *args, **kwds):
+        exec('''def %s(self, *args, **kwds):
         return self._callmethod(%r, args, kwds)''' % (meth, meth), dic)
 
     ProxyType = type(name, (base,), dic)
