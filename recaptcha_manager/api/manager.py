@@ -10,7 +10,6 @@ import copy
 import re
 
 
-
 def ensure_lock(func):
     def wrapper(*args, **kwargs):
         try:
@@ -82,9 +81,6 @@ class BaseRequest:
                  processes.
         :rtype: ObjProxy
         """
-
-        # if manager is None:
-        #     prepare_module()
 
         # Register class
         class_str = cls.__name__
@@ -444,7 +440,7 @@ class ManualManager(BaseRequest):
                 token = c['answer']
 
         .. note::
-            Make sure to either pass parameter `force_return` as True, or `max_block` as a non-zero value (or
+            Make sure to either keep parameter `force_return` as True (default), or `max_block` as a non-zero value (or
             both) to avoid a possibility for an indefinite block time
 
         """

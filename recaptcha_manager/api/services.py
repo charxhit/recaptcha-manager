@@ -3,62 +3,14 @@ import warnings
 from recaptcha_manager.api import multiprocessing
 from requests_futures.sessions import FuturesSession
 from concurrent.futures._base import Future
-from recaptcha_manager.api.exceptions import LowBidError, NoBalanceError, BadDomainError, BadAPIKeyError, BadSiteKeyError, UnexpectedResponse
-from recaptcha_manager.api.generators import make_proxy
+from recaptcha_manager.api.exceptions import LowBidError, NoBalanceError, BadDomainError, BadAPIKeyError, \
+    BadSiteKeyError, UnexpectedResponse, TimeOutError
+from ctypes import c_bool
 import urllib3
 import queue
 from time import sleep
 import time
 from requests.adapters import HTTPAdapter
-
-
-def exception_catch_decorator(func):
-    def decorator(self, *args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            self.exc = e
-    return decorator
-
-
-class ServiceObjProxy(multiprocessing.managers.NamespaceProxy):
-
-    def spawn_process(self, retry=None, exc_handler=None, disable_insecure_warning=True) -> multiprocessing.Process:
-        """
-        Wrapper for starting service process in another process.
-
-
-        :param urllib3.util.Retry retry: Retry object to be added to each request
-        :param callable exc_handler: An optional user-defined function which runs whenever an exception occurs. Defaults
-                                     to None
-        :param boolean disable_insecure_warning: Whether to disable urllib3.exceptions.InsecureRequestWarning
-
-        :returns: Started service process
-        :rtype: multiprocessing.Process
-
-        The optional exc_handler parameter takes a callable which is called everytime an exception occurs. The
-        exception is passed as a parameter to the callable. By default, after the exception occurs and
-        exc_handler has been called, the request that raised the exception is retried. However, you can raise the
-        exception from within the handler in which case the service process will quit
-        """
-
-        if self.is_alive():
-            raise RuntimeError('Service has already been started')
-        if self.is_stopped():
-            raise RuntimeError('This service has already been stopped and can no longer be used')
-        if exc_handler is None:
-            warnings.warn("No exc_handler specified, any connection errors will result in the termination of service "
-                          "process", RuntimeWarning)
-
-        proc = multiprocessing.Process(target=self.get_proxy().requests_manager, kwargs={'retry': retry,
-                                                                                'exc_handler': exc_handler,
-                                                                                'disable_insecure_warning': disable_insecure_warning})
-        proc.start()
-        return proc
-
-
-class CustomBaseManager(multiprocessing.managers.BaseManager):
-    pass
 
 
 class BaseService:
@@ -73,45 +25,21 @@ class BaseService:
 
         if not proxy_ini: raise RuntimeError("Services should be created using the create() method")
 
-        self.stopped = False
+        self._stopped = multiprocessing.Value(c_bool, False)
+        self._running = multiprocessing.Value(c_bool, False)
+        self._exc_queue = multiprocessing.Queue()
+        self._lock = multiprocessing.Lock()
+        self._exc = None
         self.request_queue = request_queue
-        self.proxy = None
-        self.process = None
-        self.exc = None
         self.unsolved = []
         self.ci_list = []
         self.key = key
-        self.running = False
-
-    def __init_subclass__(cls, **kwargs):
-        cls.PROXY = make_proxy(cls.__name__+'.PROXY', cls, base=ServiceObjProxy)
-        cls.PROXY.__qualname__, cls.PROXY.__module__ = cls.__qualname__ + '.PROXY', cls.__module__
-
-    def set_proxy(self, proxy):
-        """
-        Sets proxy to communicate with other processes
-
-        :meta private:
-        """
-        self.proxy = proxy
-
-    def get_proxy(self):
-        """
-        Returns proxy to communicate with other processes
-
-        :meta private:
-        """
-        return self.proxy
 
     def stop(self):
         """
         Stops the service
         """
-
-        if self.stopped is True:
-            raise RuntimeError("Service has already been stopped")
-
-        self.stopped = True
+        self._stopped.value = True
 
     def is_alive(self):
         """
@@ -121,7 +49,7 @@ class BaseService:
         :rtype: bool
         """
 
-        return self.running
+        return self._running.value
 
     def is_stopped(self):
         """
@@ -131,7 +59,7 @@ class BaseService:
         :rtype: bool
         """
 
-        return self.stopped
+        return self._stopped.value
 
     def get_exception(self):
         """
@@ -139,34 +67,68 @@ class BaseService:
         calls this function. Otherwise, returns None
         """
 
-        if self.exc is None:
-            return None
+        if self._exc is None:
 
-        raise type(self.exc[0])(self.exc[1])
+            # Use a lock since there might be other processes listening as well
+            with self._lock:
+                try:
+                    exc = self._exc_queue.get(block=False)
+                except queue.Empty:
+                    return None
+                else:
+                    # Put the exception back in queue for other processes to see once lock is released
+                    self._exc = exc
+                    self._exc_queue.put(exc)
+
+                    # There is an infinitesimal delay to get an item from a queue after enqueuing. This takes care of it
+                    time.sleep(1)
+
+        raise type(self._exc[0])(self._exc[1])
 
     @classmethod
     def create_service(cls, *args, **kwargs):
         """
         Properly initializes a class instance.
 
-        :return: A proxy instance of class. Has same functionality as a regular instance and can share state between
-                 processes.
-        :rtype: ServiceObjProxy
+        :return: Service object which can be used to start a service process
+        :rtype: BaseService
         """
 
-        class_str = cls.__name__
-        CustomBaseManager.register(class_str, cls, cls.PROXY)
+        return cls(*args, **kwargs, proxy_ini=True)
 
-        # Start a manager process
-        manager = CustomBaseManager()
-        manager.start()
+    def safe_join(self, service_proc, max_block=0, return_exceptions=False):
+        """
+        Properly attempts to join the service process within max_block seconds. If max_block is 0, then will wait until
+        process joins before returning. If service process returned an exception, and return_exceptions is True, then
+        will re-raise the exception. Will return the exitcode of the service process.
 
-        # Create and store instance. We must store this proxy instance since its passed in request_queue to another
-        # process whenever a captcha request is required. This allows sharing of state between processes.
-        inst = eval("manager.{}(*args, **kwargs, proxy_ini=True)".format(class_str))
-        inst.set_proxy(inst)
+        :returns: service_proc.exitcode. Will be None if the process is not finished yet
+        :param multiprocessing.Process service_proc: The started service process.
+        :param max_block: Maximum time to wait. Set as 0 to disable timeout. Default value is 0.
+        :param boolean return_exceptions: Whether to raise any exceptions caught from the service process.
+        """
 
-        return inst
+        assert isinstance(max_block, (float, int)) and max_block >= 0, "invalid value provided for max_block"
+
+        # Set exit condition
+        deadline = time.time()
+        if max_block != 0:
+            deadline += max_block
+
+        # Loops forever until process joins (or error is raised and return_exceptions is True) if max_block is 0
+        while time.time() <= deadline or max_block == 0:
+            service_proc.join(timeout=1)
+            if service_proc.exitcode is not None:
+                return service_proc.exitcode
+
+            # Flush self._exc_queue before attempting to join again
+            try:
+                self.get_exception()
+            except:
+                if return_exceptions:
+                    raise
+
+        return service_proc.exitcode
 
     def _append_data_for_failed(self, request, response_obj, error=False):
         """
@@ -223,11 +185,11 @@ class BaseService:
         # We set the attribute to mark the request as completed and can be safely removed
         response_obj.remove_request = True
 
-    def spawn_process(self, retry=None, exc_handler=None, disable_insecure_warning=True, **kwargs) -> multiprocessing.Process:
+    def spawn_process(self, retry=None, exc_handler=None, disable_insecure_warning=True) -> multiprocessing.Process:
         """
         Wrapper for starting the background service process.
 
-        :param urllib3.util.Retry retry: Retry object to be added to each request
+        :param urllib3.util.Retry retry: Retry object to be mounted to each request
         :param callable exc_handler: An optional user-defined function which runs whenever an exception occurs. Defaults
                                      to None
         :param boolean disable_insecure_warning: Whether to disable InsecureRequestWarning
@@ -239,11 +201,20 @@ class BaseService:
         exception is passed as a parameter to the callable. By default, after the exception occurs and
         exc_handler has been called, the request that raised the exception is retried. However, you can raise the
         exception from within the handler in which case the service process will quit.
-
-        Actual implementation inside class ServiceObjProxy
         """
-        raise NotImplementedError("Creating a service process directly is no longer supported in version 0.0.3 and "
-                                  "above. Check the updated documentation for a full list of changes")
+        if self.is_alive():
+            raise RuntimeError('Service has already been started')
+        if self.is_stopped():
+            raise RuntimeError('This service has already been stopped and can no longer be used')
+        if exc_handler is None:
+            warnings.warn("No exc_handler specified, any connection errors will result in the termination of service "
+                          "process", RuntimeWarning)
+
+        proc = multiprocessing.Process(target=self.requests_manager, kwargs={'retry': retry,
+                                                                             'exc_handler': exc_handler,
+                                                                             'disable_insecure_warning': disable_insecure_warning})
+        proc.start()
+        return proc
 
     def _clear_requests(self):
         """
@@ -276,8 +247,7 @@ class BaseService:
         method directly, it must be started in a different process than the main program.
         """
         try:
-            self.exc = None
-            self.running = True
+            self._running.value = True
             self.session = FuturesSession(max_workers=8)
 
             if retry:
@@ -288,7 +258,7 @@ class BaseService:
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
             # This stopped's value can be modified through parent process from outer scope to end this process here
-            while not self.stopped:
+            while not self._stopped.value:
 
                 # Get all requests submitted to requestsQueue and append them to the list self.ci_list
                 while True:
@@ -380,13 +350,13 @@ class BaseService:
                 else:
                     sleep(2)
 
-            self.running = False
-
         except Exception as e:
-            self._clear_requests()
             msg = "{}\n\nOriginal {}".format(e, traceback.format_exc())
-            self.exc = (e, msg)
-            self.running = False
+            self._exc_queue.put((e, msg))
+        finally:
+            self._clear_requests()
+            self._running.value = False
+            self._stopped.value = True
 
     def _captcha_get_answer(self, exc_handler):
         """Requests answer from captcha service for produced captcha tasks"""
@@ -543,10 +513,12 @@ class DummyService(BaseService):
 
 
 class AntiCaptcha(BaseService):
-    """Uses Anticaptcha captcha service to solve recaptchas
-
-       | URL: https://anti-captcha.com
-       | Documentation: https://anti-captcha.com/apidoc"""
+    """
+    Uses Anticaptcha captcha service to solve recaptchas
+    Contains all methods of the base class
+    | URL: https://anti-captcha.com
+    | Documentation: https://anti-captcha.com/apidoc
+    """
 
     name = 'Anticaptcha'
     api_url = 'http://api.anti-captcha.com/'
@@ -559,8 +531,6 @@ class AntiCaptcha(BaseService):
 
         :param string key: API key of the solving service
         :param request_queue: Queue for communication with managers
-        :return: A proxy instance of class. Has same functionality as a regular instance and can share state between
-                 processes.
         :rtype: AntiCaptcha
         """
         return super().create_service(key, request_queue)
@@ -731,6 +701,7 @@ class AntiCaptcha(BaseService):
 class TwoCaptcha(BaseService):
     """
     Uses 2Captcha captcha service to solve recaptchas
+    Contains all methods of the base class
 
     | URL: https://2captcha.com
     | Documentation: https://2captcha.com/2captcha-api
@@ -748,8 +719,6 @@ class TwoCaptcha(BaseService):
 
         :param string key: API key of the solving service
         :param request_queue: Queue for communication with managers
-        :return: A proxy instance of class. Has same functionality as a regular instance and can share state between
-                 processes.
         :rtype: TwoCaptcha
         """
         return super().create_service(key, request_queue)
@@ -920,7 +889,8 @@ class TwoCaptcha(BaseService):
 
 class CapMonster(AntiCaptcha):
     """
-    Uses Capmonster service to solve captcha. The service offers many similar APIs to other popular services
+    Uses Capmonster service to solve captcha.
+    Contains all methods of the base class
 
     URL: https://capmonster.cloud
     """
@@ -936,8 +906,6 @@ class CapMonster(AntiCaptcha):
 
         :param string key: API key of the solving service
         :param request_queue: Queue for communication with managers
-        :return: A proxy instance of class. Has same functionality as a regular instance and can share state between
-                 processes.
         :rtype: CapMonster
         """
         return super().create_service(key, request_queue)
