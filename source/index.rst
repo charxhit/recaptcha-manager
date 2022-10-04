@@ -369,7 +369,7 @@ Service processes are background processes used to communicate with the captcha 
 Starting & stopping services
 ++++++++++++++++++++++++++++++++
 
-To start a service process you must first choose the solving service you want to use. Recaptcha-manager supports three: AntiCaptcha, 2Captcha and CapMonster. All three services have their own classes which behave identically. Additionally, you would also require a queue which can be created using :func:`recaptcha_manager.api.generate_queue` function. However, if you have already created a manager, then use the same queue you passed during the creation of the manager. You can now create a service using the :meth:`~BaseService.create_service` method by passing the queue and the solving service's API key, and then using the :meth:`BaseService.spawn_process` to start the service process. A *very* basic example is given below::
+To start a service process you must first choose the solving service you want to use. Recaptcha-manager supports three: AntiCaptcha, 2Captcha and CapMonster. All three services have their own classes which behave identically. Additionally, you would also require a queue which can be created using :func:`recaptcha_manager.api.generators.generate_queue` function. However, if you have already created a manager, then use the same queue you passed during the creation of the manager. You can now create a service using the :meth:`~.BaseService.create_service` method by passing the queue and the solving service's API key, and then using the :meth:`.BaseService.spawn_process` to start the service process. A *very* basic example is given below::
 
    from recaptcha_manager.api import AntiCaptcha, TwoCaptcha, CapMonster
 
@@ -388,14 +388,26 @@ That's it, the service process is now running in the background!
 
 .. note:: Even though it's not disallowed, it is **not recommended** to spawn a service process without specifying an :ref:`exception handler <Connection Errors>`
 
-Once you are done, you can stop the service process by using the :meth:`~BaseService.stop` method. Keep in mind that the service process doesn't *immediately* stop upon calling the method. If you want to absolutely make sure that the service process is no longer running, you can wait for it to join:::
+Once you are done, you can stop the service process by using the :meth:`~.BaseService.stop` method. Keep in mind that the service process doesn't *immediately* stop upon calling the method. If you want to absolutely make sure that the service process is no longer running, you can wait for it to join by using :meth:`~.BaseService.safe_join`::
 
    # Signal the service to stop
    service.stop()
 
    # Optionally, wait for the process to completely quit
-   # service_proc.join()
+   # service.safe_join(service_proc)
 
+By default, :meth:`~.BaseService.safe_join` waits as long as it takes for the service process to quit before returning, but you can set a timeout using ``max_block`` parameter. If you set it to a value greater than zero (0 is the default value and disables timeout), then the method attempts to join the service process for at most ``max_block`` seconds before returning. You can then check the service process's :attr:`~multiprocessing.Process.exitcode` to determine whether it has finished or not::
+
+      # Signal the service to stop
+      service.stop()
+
+      # Attempt to join the service process for a maximum of 15s
+      service.safe_join(service_proc, max_block=15)
+
+      if service_proc.exitcode is None:
+         print("Service process has not finished yet!")
+      else:
+         print("Service process has finished with exitcode:", service_proc.exitcode)
 
 Exception Handling
 +++++++++++++++++++++++++++++++
@@ -403,7 +415,7 @@ Like previously mentioned, service processes are expected to handle communicatio
 
 Service errors and outer-scope
 --------------------------------
-Service specific errors include :exc:`~recaptcha_manager.api.exceptions.LowBidError`, :exc:`~recaptcha_manager.api.exceptions.NoBalanceError`, :exc:`~recaptcha_manager.api.exceptions.BadAPIKeyError`, and :exc:`~recaptcha_manager.api.exceptions.UnexpectedResponse`. These all are considered severe errors and are automatically raised to the outer scope. If an exception is raised to the outer scope, then the service process stops immediately until you restart it. Additionally, all captcha tasks registered with the captcha service will be lost as well. To get the exception which was raised to the outer scope, one can use :meth:`~BaseService.get_exception` which re-raises the last such exception if it exists, otherwise returns ``None`` if no exception has been raised to the outer-scope since the last time the service process was run. Call this method periodically to make sure that the service process is running without issues. Example::
+Service specific errors include :exc:`~recaptcha_manager.api.exceptions.LowBidError`, :exc:`~recaptcha_manager.api.exceptions.NoBalanceError`, :exc:`~recaptcha_manager.api.exceptions.BadAPIKeyError`, and :exc:`~recaptcha_manager.api.exceptions.UnexpectedResponse`. These all are considered severe errors and are automatically raised to the outer scope. If an exception is raised to the outer scope, then the service process stops immediately until you restart it. Additionally, all captcha tasks registered with the captcha service will be lost as well. To get the exception which was raised to the outer scope, one can use :meth:`~.BaseService.get_exception` which re-raises the last such exception if it exists, otherwise returns ``None`` if no exception has been raised to the outer-scope since the last time the service process was run. Call this method periodically to make sure that the service process is running without issues. Example::
 
    service = AntiCaptcha.create_service(api_key='xxxxx', request_queue=queue)
    service_proc = service.spawn_process()
@@ -425,7 +437,7 @@ Service specific errors include :exc:`~recaptcha_manager.api.exceptions.LowBidEr
    else:
       print("Service process running smoothly!")
 
-Keep in mind that recaptcha-manager is process-safe and uses shared memory (check :ref:`Process-safety`). Therefore, you can check the service status from a different process with minimal changes to your main code if it suits you better. For example::
+Keep in mind that recaptcha-manager is process-safe and uses shared memory (check :ref:`Share managers & services`). Therefore, you can check the service status from a different process with minimal changes to your main code if it suits you better. For example::
 
    def service_checker(service):
       while True:
@@ -462,7 +474,7 @@ Because service errors often require manual intervention (refilling of balance, 
 
 Connection Errors
 -----------------------------
-Connection errors like timeouts are common and may result in the service process stopping everytime they occur. Therefore, to handle connection errors, you can specify a callable which will be called everytime an exception occurs by using the `exc_handler` parameter when starting the service process with :meth:`~BaseService.spawn_process`. The exception is then passed as an argument to this callable. Therefore, you can have your own code to handle the exceptions relating to connection errors.
+Connection errors like timeouts are common and may result in the service process stopping everytime they occur. Therefore, to handle connection errors, you can specify a callable which will be called everytime an exception occurs by using the `exc_handler` parameter when starting the service process with :meth:`~.BaseService.spawn_process`. The exception is then passed as an argument to this callable. Therefore, you can have your own code to handle the exceptions relating to connection errors.
 
 .. note:: Recaptcha-manager uses :py:mod:`requests` under the hood to make the requests.
 
@@ -506,7 +518,7 @@ Similarly, if you want to automatically retry all requests that raised errors, y
 
 .. note:: Incase no `exc_handler` is provided, then all exceptions will automatically be raised to the outer scope.
 
-Additionally, you can pass a :class:`~urllib3.util.Retry` object which will be mounted to every outgoing request (see parameter ``retry`` in :meth:`~BaseService.spawn_process`)::
+Additionally, you can pass a :class:`~urllib3.util.Retry` object which will be mounted to every outgoing request (see parameter ``retry`` in :meth:`~.BaseService.spawn_process`)::
 
    from requests.packages.urllib3.util.retry import Retry
 
@@ -556,12 +568,17 @@ If there are multiple services running, and if you want to create managers that 
                                        captcha_type='v2)
 
 
-Process-Safety
-=================
+Multiprocessing and recaptcha-manager
+========================================
 
-Recaptcha-manager uses multiprocess, a fork of :py:mod:`multiprocessing` to ensure non-blocking code, and is designed keeping parallelism in mind. In accordance, recaptcha-manager uses shared memory and internal synchronization tools like locks to make it process and thread safe. Unless specified, you can assume this is true for the entirety of recaptcha-manager's public API. Therefore, you can pass instances of managers and services to different processes and still be able to use them like you would normally do.
+Recaptcha-manager uses :mod:`multiprocess`, a fork of :py:mod:`multiprocessing` to ensure non-blocking code, and is designed keeping parallelism in mind. This section is aimed to inform you about how recaptcha-manager uses multiprocessing, best practices associated with it, and how you can customize it's use of multiprocessing according to your needs.
 
-For example, instead of creating a separate manager in each process, you can create one and pass it to other processes. The data inside the manager will automatically be synchronized across all processes that access it. Using a pool::
+Share managers & services
+++++++++++++++++++++++++++++++
+
+Recaptcha-manager already uses shared memory and internal synchronization primitives to make managers and services process and thread safe. Unless specified, you can assume this is true for the entirety of recaptcha-manager's public API. Therefore, you can pass instances of managers and services to different processes and still be able to use them like you would normally do.
+
+For example, instead of creating a separate manager in each process, you should create one and pass it to other processes. The data inside the manager will automatically be synchronized across all processes that access it. Moreover, the manager you have access to is a proxy object, so it will be quicker to pickle and pass to other processes as well. Sharing managers like this instead of creating one per process has the added benefit that the manager will have access to more consolidated data while using lesser resources. Example of sharing managers using a :obj:`multiprocessing.Pool`::
 
    def worker(manager):
       # Do something with the manager
@@ -580,6 +597,51 @@ For example, instead of creating a separate manager in each process, you can cre
       # Start 8 tasks which require managers. The manager will be synchronized across processes automatically!
       for _ in range(8):
          results = pool.map(worker, [manager]*8)
+
+Joining service processes
++++++++++++++++++++++++++++++
+
+You should join the service process you created after stopping the service. This ensures proper cleanup and any resources used by the process will hence be properly released back. However, beware of joining the service process normally, since that may cause a dead lock if the service process raised an error to the outer-scope before terminating. Instead, you should use the :meth:`~.BaseService.safe_join` method whenever you want to join the service process. A minified example::
+
+   if __name__ == "__main__":
+      request_queue = generate_queue()
+      service = TwoCaptcha.create_service(API_KEY, request_queue)
+      service_proc = service.spawn_process()
+
+      service.stop()
+      service.safe_join(service_proc)
+
+Using standard library's multiprocessing
++++++++++++++++++++++++++++++++++++++++++++++
+
+While :mod:`multiprocess` is a convenient fork of the built-in multiprocessing, these two libraries aren't fully compatible with each other. Trying to integrate recaptcha-manager in a project which uses the built-in multiprocessing rather than :mod:`multiprocess`, can then become difficult.
+
+To support such use-cases, you can configure recaptcha-manager to use the built-in multiprocessing instead. Example::
+
+   from recaptcha_manager import configurations
+   # Setting to False means to use built-in multiprocessing. Default is True, which means
+   # to use multiprocess.
+   configurations.USE_DILL = False
+
+   # Now you can import .api sub-package, it will use the built-in multiprocessing instead
+   from recaptcha_manager.api import AutoManager, generate_queue
+
+Keep in mind that you must edit the configurations before you import anything from within ``recaptcha_manager.api``! Editing it after importing will have no effect.
+
+Passing managers when generating queues
++++++++++++++++++++++++++++++++++++++++++
+
+By default, whenever you generate a queue, a :obj:`multiprocessing.Manager` is spawned (not to be confused with the managers like :class:`recaptcha_manager.api.managers.AutoManager` and :class:`recaptcha_manager.api.managers.ManualManager` that recaptcha-manager offers). Therefore, if you are planning on using many queues and want to handle the resources yourself, then you may spawn a manager yourself and pass it when generating a queue. It will then use that manager to create the queue::
+
+   import multiprocess # or multiprocessing, if you have changed the configurations already
+   from recaptcha_manager.api import generate_queue
+
+   if __name__ == "__main__":
+      multiprocess_manager = multiprocess.Manager()
+      request_queue = generate_queue(manager=multiprocess_manager)
+
+Keep in mind, however, that while creating multiple queues from the same manager will use lesser resources, it will adversely impact the performance of the queues. Lastly, make sure that the manager you create is from the correct package. Recaptcha-manager uses :mod:`multiprocess` by default, however, if you changed the configurations to use the standard library's py:mod:`multiprocessing` instead, then you must create the manager using ``multiprocessing.Manager()`` instead (note the -ing). If there is a discrepancy between the package recaptcha-manager is configured to use and the one you used to create the manager, then it is likely that an :exc:`multiprocessing.AuthenticationError` will be raised down the road when the queue is used.
+
 
 Testing
 ========
@@ -680,6 +742,16 @@ References
 This section contains all relevant code and its documentation separated by their classes
 
 
+Low-level classes
++++++++++++++++++++++++++
+.. py:currentmodule:: recaptcha_manager.api.services
+.. autoclass:: BaseService
+   :members:
+
+.. py:currentmodule:: recaptcha_manager.api.manager
+.. autoclass:: BaseRequest
+   :members:
+
 
 Service classes
 +++++++++++++++++++++++++
@@ -688,17 +760,14 @@ Service classes
 .. autoclass:: AntiCaptcha
    :show-inheritance:
    :members:
-   :inherited-members:
 
 .. autoclass:: TwoCaptcha
    :show-inheritance:
    :members:
-   :inherited-members:
 
 .. autoclass:: CapMonster
    :show-inheritance:
    :members:
-   :inherited-members:
 
 .. module:: recaptcha_manager.api.manager
 
@@ -712,16 +781,6 @@ Managers
 .. autoclass:: ManualManager
    :members:
    :inherited-members:
-
-Low-level classes
-+++++++++++++++++++++++++
-.. py:currentmodule:: recaptcha_manager.api.services
-.. autoclass:: BaseService
-   :members:
-
-.. py:currentmodule:: recaptcha_manager.api.manager
-.. autoclass:: BaseRequest
-   :members:
 
 
 Miscellaneous functions
