@@ -22,7 +22,7 @@ copyright = '2021, Charchit Agarwal'
 author = 'Charchit Agarwal'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.9'
+release = '0.1.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -38,7 +38,8 @@ extensions = ['sphinx.ext.autodoc',
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'urllib3': ('https://urllib3.readthedocs.io/en/latest/', None),
                        'requests': ('https://requests.readthedocs.io/en/latest/', None),
-                       'dill': ('https://dill.readthedocs.io/en/latest', None)}
+                       'dill': ('https://dill.readthedocs.io/en/latest', None),
+                       'multiprocess': ('https://multiprocess.readthedocs.io/en/latest/', None)}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
