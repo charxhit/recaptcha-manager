@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="recaptcha-manager",
-    version="0.1.0",
+    version="0.1.",
     author="Charchit Agarwal",
     author_email="charchit.a00@gmail.com",
     url="https://www.github.com/charxhit/recaptcha-manager",
@@ -22,6 +22,6 @@ setup(
     ],
     python_requires='>=3.5',
     packages=['recaptcha_manager', 'recaptcha_manager.api'],
-    install_requires=['requests-futures >=1.0.0;platform_system=="Windows"',
-                      'multiprocess;platform_system=="Windows"']
+    install_requires=['requests-futures >=1.0.0',
+                      'multiprocess']
 )

@@ -73,7 +73,7 @@ captcha_type = 'v2'
 url = 'https://www.google.com/recaptcha/api2/demo'
 total_runs = 20
 
-# Remember to protect your main with this clause!
+# Remember to protect your main with this clause incase you are running on Windows!
 if __name__ == "__main__":
     if not api_key:
         raise ValueError('no value for "api_key" provided')

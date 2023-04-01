@@ -21,14 +21,14 @@ Average solving time for recaptchas by solving services like 2Captcha, Anticaptc
 
 Some other core features of recaptcha-manager are summarized below:
 
-* **Quick Integration** - Supports API of popular captcha solving services like Anticaptcha, 2Captcha and CapMonster
+* **Quick Integration** - Supports API of popular captcha solving services like Anticaptcha, 2Captcha and CapMonster. Supports Windows, UNIX, and macOS.
 * **Flexibility** - Works equally well on applications requiring 2-3 captchas a minute as well as those requiring 40+ captchas a minute
 * **Adaptability** - Can readjust even if your applications' rate of requesting captchas drastically changes midway
 * **Unification** - If you use multiple captcha solving services, then you can use all of them simultaneously using recaptcha-manager, or switch between them incase of an error.
 * **Efficiency** - Apart from sending HTTP requests to communicate with the solving service's API in a separate background process, the requests are also sent asynchronously so that the service response times do not slow down scripts requiring a high volume of recaptchas
 
 
-.. note:: This package uses multiprocessing to spawn a service process which handles captcha requests in the background. Therefore, your main code must be under a ``if __name__ == "__main__"`` clause (more information `here <https://docs.python.org/3/library/multiprocessing.html#programming-guidelines>`_). A very simple example of how to do this is given below:
+.. note:: This package uses multiprocessing to spawn a service process which handles captcha requests in the background. Therefore, your main code must be under a ``if __name__ == "__main__"`` clause (more information `here <https://docs.python.org/3/library/multiprocessing.html#programming-guidelines>`_) if you are running on Windows. A very simple example of how to do this is given below:
 
    .. code-block:: python
 
@@ -75,7 +75,8 @@ Integrating recaptcha-manager with your program is incredibly simple. It uses a 
 
 For convenience, there are full code examples provided `here <https://github.com/charxhit/recaptcha-manager/tree/main/examples>`_.
 
-.. note:: Support is only available for Windows platform. While recaptcha-manager **may** potentially work with UNIX systems, it is not guaranteed nor officially supported yet.
+.. versionadded:: 0.1.1
+   Support is now available for Windows platforms as well as UNIX systems and macOS.
 
 The following sections go into more details about the capabilities of manager and service processes.
 
